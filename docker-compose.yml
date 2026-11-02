@@ -1,0 +1,8 @@
+services:
+  deepshield:
+    build: .
+    ports:
+      - "7860:7860"
+    environment:
+      - DS_VIDEO_FRAMES=24
+    restart: unless-stopped

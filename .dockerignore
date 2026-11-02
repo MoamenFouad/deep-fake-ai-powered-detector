@@ -1,0 +1,10 @@
+.git
+.github
+data
+tests
+ml/notebooks
+docs
+reports/*.png
+**/__pycache__
+.pytest_cache
+.ruff_cache
