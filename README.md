@@ -86,7 +86,7 @@ cd deep-fake-ai-powered-detector
 # Docker
 docker compose up --build            # http://localhost:7860
 
-# or Python 3.11+
+# or Python 3.12+
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 uvicorn app.main:app --port 7860

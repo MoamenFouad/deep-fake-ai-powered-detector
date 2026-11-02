@@ -2,7 +2,7 @@
 name = "deepshield"
 version = "1.0.0"
 description = "AI-powered deepfake detection for images and videos with Grad-CAM explanations"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 
 [tool.ruff]
