@@ -1,0 +1,91 @@
+video,source,label,p_fake,verdict,frames,ms
+celebdf_v2/Celeb-real/id12_0000.mp4,celebdf,0,0.9683,fake,24,14791
+celebdf_v2/YouTube-real/00288.mp4,celebdf,0,0.6338,fake,24,13299
+celebdf_v2/YouTube-real/00270.mp4,celebdf,0,0.2949,real,24,11767
+celebdf_v2/YouTube-real/00261.mp4,celebdf,0,0.0092,real,24,14583
+celebdf_v2/YouTube-real/00253.mp4,celebdf,0,0.0528,real,24,13245
+celebdf_v2/Celeb-real/id35_0000.mp4,celebdf,0,0.1728,real,24,12573
+celebdf_v2/Celeb-real/id44_0003.mp4,celebdf,0,0.8775,fake,24,12278
+celebdf_v2/Celeb-real/id23_0001.mp4,celebdf,0,0.0949,real,24,13181
+celebdf_v2/Celeb-real/id36_0002.mp4,celebdf,0,0.4017,uncertain,24,12696
+celebdf_v2/YouTube-real/00202.mp4,celebdf,0,0.2692,real,24,12014
+celebdf_v2/YouTube-real/00286.mp4,celebdf,0,0.2563,real,24,12703
+celebdf_v2/YouTube-real/00082.mp4,celebdf,0,0.1015,real,24,11211
+celebdf_v2/Celeb-real/id2_0002.mp4,celebdf,0,0.0816,real,24,11461
+celebdf_v2/Celeb-real/id11_0006.mp4,celebdf,0,0.6482,fake,24,12198
+celebdf_v2/Celeb-real/id11_0008.mp4,celebdf,0,0.6955,fake,24,13080
+celebdf_v2/YouTube-real/00208.mp4,celebdf,0,0.1877,real,24,12874
+celebdf_v2/Celeb-real/id57_0007.mp4,celebdf,0,0.439,uncertain,24,11715
+celebdf_v2/Celeb-real/id1_0006.mp4,celebdf,0,0.1626,real,24,11478
+celebdf_v2/YouTube-real/00271.mp4,celebdf,0,0.1779,real,24,12892
+celebdf_v2/YouTube-real/00048.mp4,celebdf,0,0.0958,real,24,11932
+celebdf_v2/Celeb-real/id2_0004.mp4,celebdf,0,0.0209,real,24,11873
+celebdf_v2/Celeb-real/id27_0008.mp4,celebdf,0,0.36,real,24,10773
+celebdf_v2/Celeb-real/id43_0006.mp4,celebdf,0,0.804,fake,24,11895
+celebdf_v2/Celeb-real/id43_0002.mp4,celebdf,0,0.9686,fake,24,11255
+celebdf_v2/YouTube-real/00021.mp4,celebdf,0,0.3338,real,24,12049
+celebdf_v2/YouTube-real/00252.mp4,celebdf,0,0.0183,real,24,11195
+celebdf_v2/YouTube-real/00289.mp4,celebdf,0,0.8265,fake,24,10847
+celebdf_v2/Celeb-real/id46_0000.mp4,celebdf,0,0.3923,real,24,11179
+celebdf_v2/YouTube-real/00257.mp4,celebdf,0,0.4995,uncertain,24,11630
+celebdf_v2/Celeb-real/id2_0001.mp4,celebdf,0,0.1886,real,24,10786
+celebdf_v2/Celeb-synthesis/id30_id6_0007.mp4,celebdf,1,0.4417,uncertain,24,11013
+celebdf_v2/Celeb-synthesis/id32_id31_0008.mp4,celebdf,1,0.8917,fake,24,26933
+celebdf_v2/Celeb-synthesis/id35_id28_0006.mp4,celebdf,1,0.6786,fake,24,17273
+celebdf_v2/Celeb-synthesis/id51_id50_0008.mp4,celebdf,1,0.6535,fake,24,12484
+celebdf_v2/Celeb-synthesis/id3_id28_0009.mp4,celebdf,1,0.9265,fake,24,10911
+celebdf_v2/Celeb-synthesis/id27_id23_0008.mp4,celebdf,1,0.5248,uncertain,24,11052
+celebdf_v2/Celeb-synthesis/id6_id23_0001.mp4,celebdf,1,0.6642,fake,24,11346
+celebdf_v2/Celeb-synthesis/id34_id29_0008.mp4,celebdf,1,0.4793,uncertain,24,11901
+celebdf_v2/Celeb-synthesis/id27_id21_0008.mp4,celebdf,1,0.5706,uncertain,24,10875
+celebdf_v2/Celeb-synthesis/id54_id49_0003.mp4,celebdf,1,0.5057,uncertain,24,12297
+celebdf_v2/Celeb-synthesis/id28_id9_0000.mp4,celebdf,1,0.6204,fake,24,12021
+celebdf_v2/Celeb-synthesis/id57_id51_0000.mp4,celebdf,1,0.9473,fake,24,11242
+celebdf_v2/Celeb-synthesis/id6_id21_0006.mp4,celebdf,1,0.4597,uncertain,24,11987
+celebdf_v2/Celeb-synthesis/id55_id57_0002.mp4,celebdf,1,0.8129,fake,24,11227
+celebdf_v2/Celeb-synthesis/id31_id33_0009.mp4,celebdf,1,0.3084,real,24,11920
+celebdf_v2/Celeb-synthesis/id29_id37_0009.mp4,celebdf,1,0.4447,uncertain,24,11696
+celebdf_v2/Celeb-synthesis/id37_id1_0002.mp4,celebdf,1,0.4533,uncertain,24,11624
+celebdf_v2/Celeb-synthesis/id28_id26_0000.mp4,celebdf,1,0.5599,uncertain,24,12787
+celebdf_v2/Celeb-synthesis/id48_id41_0001.mp4,celebdf,1,0.6694,fake,24,12224
+celebdf_v2/Celeb-synthesis/id9_id0_0000.mp4,celebdf,1,0.3072,real,24,12222
+celebdf_v2/Celeb-synthesis/id7_id13_0009.mp4,celebdf,1,0.7947,fake,24,12892
+celebdf_v2/Celeb-synthesis/id39_id44_0008.mp4,celebdf,1,0.8526,fake,24,11760
+celebdf_v2/Celeb-synthesis/id38_id34_0004.mp4,celebdf,1,0.4557,uncertain,24,11888
+celebdf_v2/Celeb-synthesis/id16_id3_0011.mp4,celebdf,1,0.6056,fake,24,10524
+celebdf_v2/Celeb-synthesis/id4_id20_0008.mp4,celebdf,1,0.4421,uncertain,24,12086
+celebdf_v2/Celeb-synthesis/id9_id16_0000.mp4,celebdf,1,0.2499,real,24,12572
+celebdf_v2/Celeb-synthesis/id37_id28_0007.mp4,celebdf,1,0.5367,uncertain,24,11169
+celebdf_v2/Celeb-synthesis/id25_id23_0010.mp4,celebdf,1,0.2665,real,24,11299
+celebdf_v2/Celeb-synthesis/id21_id19_0005.mp4,celebdf,1,0.3268,real,24,11499
+celebdf_v2/Celeb-synthesis/id37_id3_0006.mp4,celebdf,1,0.1041,real,24,12291
+google_dfd/DFD_original sequences/22__podium_speech_happy.mp4,dfd,0,0.1937,real,24,24571
+google_dfd/DFD_original sequences/22__exit_phone_room.mp4,dfd,0,0.8482,fake,24,39964
+google_dfd/DFD_original sequences/27__meeting_serious.mp4,dfd,0,0.6844,fake,24,55324
+google_dfd/DFD_original sequences/24__secret_conversation.mp4,dfd,0,0.4108,uncertain,24,53980
+google_dfd/DFD_original sequences/26__talking_angry_couch.mp4,dfd,0,0.6711,fake,24,64395
+google_dfd/DFD_original sequences/27__hugging_happy.mp4,dfd,0,0.2178,real,24,34508
+google_dfd/DFD_original sequences/28__kitchen_pan.mp4,dfd,0,0.3675,real,24,24832
+google_dfd/DFD_original sequences/28__podium_speech_happy.mp4,dfd,0,0.7141,fake,24,23948
+google_dfd/DFD_original sequences/27__kitchen_still.mp4,dfd,0,0.0145,real,24,24154
+google_dfd/DFD_original sequences/26__outside_talking_pan_laughing.mp4,dfd,0,0.8359,fake,24,27357
+google_dfd/DFD_original sequences/27__kitchen_pan.mp4,dfd,0,0.0247,real,24,24126
+google_dfd/DFD_original sequences/25__outside_talking_still_laughing.mp4,dfd,0,0.5937,uncertain,24,24057
+google_dfd/DFD_original sequences/23__podium_speech_happy.mp4,dfd,0,0.2254,real,24,25106
+google_dfd/DFD_original sequences/27__exit_phone_room.mp4,dfd,0,0.616,fake,24,24073
+google_dfd/DFD_original sequences/24__outside_talking_still_laughing.mp4,dfd,0,0.1984,real,24,22997
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/27_18__walking_outside_cafe_disgusted__NYHE8D0J.mp4,dfd,1,0.9073,fake,24,24066
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/24_19__walk_down_hall_angry__QD5K7BP2.mp4,dfd,1,0.87,fake,24,23665
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/26_04__talking_angry_couch__MS2MLJP1.mp4,dfd,1,0.7271,fake,24,29770
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/24_19__outside_talking_pan_laughing__LVZNRK9S.mp4,dfd,1,0.5759,uncertain,24,25742
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/24_19__walking_down_street_outside_angry__59PN7WZ2.mp4,dfd,1,0.9631,fake,24,22842
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/26_13__podium_speech_happy__U5ELHUN5.mp4,dfd,1,0.9246,fake,24,22822
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/26_12__talking_against_wall__HEKDCIHW.mp4,dfd,1,0.912,fake,24,23462
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/21_09__talking_against_wall__JEELOMN2.mp4,dfd,1,0.9964,fake,24,25094
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/21_20__walk_down_hall_angry__ZCB5OMEW.mp4,dfd,1,0.9859,fake,24,24467
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/21_09__talking_angry_couch__CGIID3GV.mp4,dfd,1,0.9404,fake,24,29446
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/22_24__walking_outside_cafe_disgusted__XL557XC6.mp4,dfd,1,0.9413,fake,24,26051
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/25_09__walking_down_street_outside_angry__5041ODBN.mp4,dfd,1,0.9223,fake,24,26588
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/27_02__hugging_happy__UGO2181S.mp4,dfd,1,0.769,fake,24,29985
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/21_09__walking_down_indoor_hall_disgust__JEELOMN2.mp4,dfd,1,0.9662,fake,24,33312
+google_dfd/DFD_manipulated_sequences/DFD_manipulated_sequences/25_26__walking_down_street_outside_angry__XKQAYTLI.mp4,dfd,1,0.9365,fake,24,29021
