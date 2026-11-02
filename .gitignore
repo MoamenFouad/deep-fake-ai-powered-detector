@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+.env
+.DS_Store
+.ipynb_checkpoints/
+
+# Datasets and feature caches are rebuilt by ml/scripts (see docs/DATASETS.md)
+data/
+
+# Downloaded weights (fetched at build time); the fusion head IS committed
+models/*.onnx
+models/hf-cache/
