@@ -1,0 +1,8 @@
+# Extra dependencies for data preparation, training and evaluation.
+-r ../requirements.txt
+torch==2.15.0
+pandas==3.0.5
+pyarrow==26.0.0
+remotezip==0.12.6
+scikit-learn==1.9.1
+matplotlib==3.11.2
