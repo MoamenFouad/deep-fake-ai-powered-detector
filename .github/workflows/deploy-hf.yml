@@ -1,0 +1,30 @@
+name: Deploy to Hugging Face Spaces
+
+# Pushes main to your Space after CI passes.
+# One-time setup: add repository secret HF_TOKEN (a write token) and
+# repository variable HF_SPACE (for example: your-username/deepshield).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      - name: Push to Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          test -n "$HF_TOKEN" || { echo "Missing HF_TOKEN secret"; exit 1; }
+          test -n "$HF_SPACE" || { echo "Missing HF_SPACE variable"; exit 1; }
+          HF_USER="${HF_SPACE%%/*}"
+          git push --force "https://${HF_USER}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main
