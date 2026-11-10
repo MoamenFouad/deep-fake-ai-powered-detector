@@ -19,6 +19,16 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+      - name: Add the Space config to the README
+        # Spaces read their settings from YAML front matter in README.md. It is kept in
+        # .github/hf-space-header.md so the GitHub README stays clean, and is added here
+        # in a commit that only goes to the Space.
+        run: |
+          git config user.name "MoamenFouad"
+          git config user.email "elsagir2004@gmail.com"
+          cat .github/hf-space-header.md README.md > README.space.md
+          mv README.space.md README.md
+          git commit -qam "Add Space config"
       - name: Push to Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

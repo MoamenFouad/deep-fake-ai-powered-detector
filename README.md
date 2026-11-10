@@ -1,32 +1,85 @@
+<div align="center">
+
+# 🛡️ DeepShield: Is This Face Real?
+
+![Python](https://img.shields.io/badge/Python_3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![Hugging Face](https://img.shields.io/badge/Hugging_Face-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)
+![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+
+[![CI](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml)
+![Test AUC](https://img.shields.io/badge/test_AUC-0.920-0d0d0d)
+![Version](https://img.shields.io/badge/version-1.1.0-ffd400)
+![License](https://img.shields.io/badge/license-MIT-0d0d0d)
+
+> **Drop a photo or a video. See if the face is real. See why.**
+
+</div>
+
+DeepShield is an AI-powered deepfake detector built for the DEPI Machine Learning track.
+Upload a photo or a short video and it finds every face, checks it with two pretrained
+deepfake detectors fused by a model we trained on four public datasets, and shows the
+evidence: **where** in the face (Grad-CAM heatmap), **when** in the video (per-frame
+timeline), and **which known fakes it resembles** (closest training cases). Every check
+can be exported as a PDF forensic report.
+
+<p align="center">
+  <img src="docs/images/demo.gif" width="860" alt="Choosing the AI face sample, the verdict appearing, and dragging the evidence-map slider">
+</p>
+
 ---
-title: DeepShield
-emoji: 🛡️
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
-short_description: Detect AI-generated and face-swapped faces in photos and videos
+
+## 🚀 Features
+
+### 🧠 Detection
+- **Two frozen expert detectors:** [CommunityForensics ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT) and [SigLIP deepfake-detector v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1), each trained on different kinds of fakes
+- **Fusion head** trained on our data: logistic regression over 1,154 features (both embeddings plus both scores) that lifts test AUC from 0.852 (simple average) to **0.920**
+- **YuNet face detection** with a 25% context crop, so every face in a group photo gets its own score
+- **Three-way verdict:** real, inconclusive or likely manipulated, instead of a forced yes/no
+
+### 🔍 Explainability
+- **Evidence map:** Grad-CAM heatmap with a drag slider to compare it against the original face
+- **Detector agreement:** both backbones' raw scores, with a note when the fusion head overrides them
+- **Closest known cases (retrieval):** each face is matched against 3,440 labeled training faces and the 5 nearest are shown with their kind of fake ("5 of 5 are StyleGAN faces"). Only 64-number fingerprints and labels are stored, never images
+- **Video timeline:** 24 sampled frames scored and plotted; click a point to jump the video there
+
+### ⚡ Experience
+- Analysis starts the moment a file is chosen; drop a file anywhere or paste with Ctrl+V / Cmd+V
+- Built-in samples, recent checks in the tab, one-click summary copy
+- **PDF forensic report** for every analysis
+- Fully responsive, keyboard accessible, files checked in memory and never stored
+
 ---
 
-# DeepShield: AI-powered deepfake detector
+## 📸 Screenshots
 
-DeepShield checks whether a face in a photo or video is real or AI-manipulated,
-shows **where** the evidence is (Grad-CAM heatmap) and **when** it appears in a
-video (per-frame timeline), lists the closest known real and fake faces from its
-training data, and exports a PDF forensic report.
+<p align="center"><img src="docs/images/home.png" width="900" alt="DeepShield home page"></p>
 
-Built by **Moamen Ahmed Fouad** for the DEPI Machine Learning track (2026).
+| AI-generated face | Real photo |
+|---|---|
+| *Caught at 99.9%, both detectors agree, 5 of 5 nearest cases are StyleGAN fakes* | *0.6% manipulation probability; all 5 nearest cases are real FFHQ photos* |
+| ![Fake result](docs/images/result-fake.png) | ![Real result](docs/images/result-real.png) |
 
-**Live demo:** `https://<your-hf-username>-deepshield.hf.space` (see [Deployment](docs/DEPLOYMENT.md))
+| Video face swap | PDF forensic report |
+|---|---|
+| *24-frame timeline; the fusion head catches a swap both raw detectors missed* | *Verdict, crops, heatmaps, backbone scores and closest cases* |
+| ![Video result](docs/images/result-video.png) | ![PDF report](docs/images/pdf-report.png) |
 
-## Results
+| On a phone | Accuracy, live from the test set |
+|---|---|
+| ![Mobile](docs/images/mobile.png) | ![Accuracy section](docs/images/accuracy.png) |
 
-Held-out test set: 1,320 face crops from four public datasets, never seen during
-training or model selection.
+---
 
-| | AUC | Accuracy | F1 |
+## 📊 Results
+
+Held-out test set: **1,320 face crops** from four public datasets. No identity, actor or
+source video appears in both train and test ([details](docs/DATASETS.md)).
+
+| Model | AUC | Accuracy | F1 |
 |---|---|---|---|
 | **DeepShield (fused)** | **0.920** | **82.7%** | **0.816** |
 | Average of the same two backbones | 0.852 | 74.7% | 0.678 |
@@ -39,8 +92,7 @@ training or model selection.
 | Google DFD (video face swaps) | 0.848 |
 | Celeb-DF v2 (high-quality video face swaps) | 0.586, the known weak spot |
 
-**Whole videos, end to end** (90 held-out videos through the full app pipeline: frame
-sampling, face detection, fusion, aggregation):
+**Whole videos, end to end** (90 held-out videos through the full app pipeline):
 
 | Videos | AUC | Accuracy at 0.5 |
 |---|---|---|
@@ -49,63 +101,140 @@ sampling, face detection, fusion, aggregation):
 | All (90) | 0.761 | 68.9% |
 
 Combining 24 frames helps: Celeb-DF rises from 0.59 per frame to 0.71 per video.
-One video in five lands in the "inconclusive" band instead of getting a forced answer.
 
 <p align="center"><img src="reports/per_dataset_auc.png" width="720" alt="AUC per dataset, fused model vs best single pretrained model"></p>
 
-Full numbers, method and limitations: [Model card](docs/MODEL_CARD.md).
+Full method, numbers and limitations: [Model card](docs/MODEL_CARD.md).
 
-## How it works
+---
+
+## 🏗️ Architecture
 
 ```
-upload ─► face detection (YuNet) ─► square crop with 25% context
-       ─► two frozen pretrained detectors (ViT-S + SigLIP)
-       ─► fusion head trained on our data (logistic regression, 1,154 features)
-       ─► image: most suspicious face  |  video: 24 frames, mean + top-quartile
-       ─► verdict (real / inconclusive / fake) + Grad-CAM + timeline + PDF
-       ─► closest known cases: the 5 most similar labeled training faces
+Photo or video (web UI or POST /api/analyze)
+│
+▼
+YuNet face detector ──────────────► square crop, 25% context
+│                                   (videos: up to 24 sampled frames)
+│
+├─── CommunityForensics ViT ──────► 384-d embedding + fake score
+├─── SigLIP detector v1 ──────────► 768-d embedding + fake score
+│
+▼
+Fusion head (logistic regression, 1,154 features)
+│
+├─── Verdict ─────────────────────► real / inconclusive / fake
+│     image: most suspicious face, video: mean + top-quartile
+├─── Grad-CAM ────────────────────► evidence heatmap per face
+├─── Retrieval (PCA-64, cosine) ──► 5 closest labeled training faces
+└─── ReportLab ───────────────────► PDF forensic report
 ```
 
-1. **Five public deepfake detectors** from the Hugging Face Hub were benchmarked.
-   Alone, the best one scored 0.82 AUC, and two of them were near coin-flip on our data.
-2. **The data picked the backbones.** Every pair was scored on a validation split
-   carved out of training data. CommunityForensics ViT + SigLIP v1 won.
-3. **Light fine-tune:** a 1,155-parameter fusion head learns how to combine their
-   embeddings and scores. It trains in seconds on a CPU and adds 0.07 AUC over simple
-   averaging.
-4. **No leakage:** identities, actors and source videos never appear in both train
-   and test ([details](docs/DATASETS.md)).
-5. **Closest known cases (retrieval):** every face is also compared with a 64-number
-   fingerprint of each of the 3,440 training faces, and the 5 most similar are shown
-   with their label and kind of fake ("5 of 5 are StyleGAN fakes"). Only numbers and
-   labels are stored, never dataset images. This is the retrieval half of RAG; on its
-   own a 5-neighbour vote reaches 0.81 AUC, so it is shown as supporting evidence and
-   the verdict stays with the fusion head.
+How the model was built:
 
-What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+1. **Benchmark:** five public deepfake detectors from the Hugging Face Hub were tested on our data. The best scored 0.82 AUC; two were near coin-flip.
+2. **Let the data pick the backbones:** every pair was scored on a validation split carved out of training data. CommunityForensics ViT + SigLIP v1 won.
+3. **Light fine-tune:** a 1,155-parameter fusion head learns to combine them. It trains in seconds on a CPU and adds 0.07 AUC over averaging.
+4. **Retrieval:** a 5-nearest-neighbour vote alone reaches 0.81 AUC, so it is shown as supporting evidence while the verdict stays with the fusion head.
 
-Architecture diagram and design decisions: [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Design decisions and diagram: [ARCHITECTURE.md](docs/ARCHITECTURE.md). Version history: [CHANGELOG.md](CHANGELOG.md).
 
-## Quick start
+### Tech Stack
+
+**Backend**
+
+| Technology | Purpose |
+|---|---|
+| FastAPI + Uvicorn | REST API and static web app |
+| Pydantic | Typed request and response schemas |
+| ReportLab | PDF forensic reports |
+| Python 3.12 | Runtime |
+
+**AI and ML**
+
+| Technology | Purpose |
+|---|---|
+| PyTorch + Transformers | Running the two ViT / SigLIP backbones |
+| scikit-learn | Fusion head, PCA for the retrieval index, metrics |
+| OpenCV YuNet | Face detection |
+| Grad-CAM | Evidence heatmaps |
+| NumPy | Cosine nearest-neighbour search over 3,440 fingerprints |
+
+**Frontend**
+
+| Technology | Purpose |
+|---|---|
+| HTML, CSS, vanilla JavaScript | No build step, loads instantly |
+| Archivo (variable font) | Self-hosted typography |
+| Inline SVG | Gauge, timeline and accuracy charts |
+
+**Infrastructure**
+
+| Technology | Purpose |
+|---|---|
+| Docker / Docker Compose | One-command run |
+| GitHub Actions | Lint, tests, auto-deploy |
+| Hugging Face Spaces | Hosting (Docker SDK) |
+| Git LFS | Model files, fonts and images |
+
+---
+
+## 🛠️ Installation and Setup
+
+**Prerequisites:** Python 3.12+ or Docker. About 700 MB of model weights download on first start.
+
+**1. Clone the repository**
 
 ```bash
 git clone https://github.com/MoamenFouad/deep-fake-ai-powered-detector.git
 cd deep-fake-ai-powered-detector
+```
 
-# Docker
-docker compose up --build            # http://localhost:7860
+**2a. Run with Docker**
 
-# or Python 3.12+
+```bash
+docker compose up --build
+# App runs on http://localhost:7860
+```
+
+**2b. Or run with Python**
+
+```bash
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 uvicorn app.main:app --port 7860
+# App runs on http://localhost:7860
 ```
 
-The first start downloads about 700 MB of model weights.
+**3. Run the tests**
 
-## API
+```bash
+pip install -r requirements-dev.txt
+ruff check . && DS_STUB_MODELS=1 pytest -q
+```
+
+Tests use a stub model, so they run in seconds without downloads.
+
+---
+
+## 📦 Deployment
+
+Every push to `main` runs CI, then deploys to Hugging Face Spaces automatically once the
+`HF_TOKEN` secret and `HF_SPACE` variable are set. Step-by-step guide:
+[DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+---
+
+## 🔌 API Reference
 
 Interactive docs at `/docs`.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/analyze` | Image (JPG, PNG, WebP, BMP, up to 10 MB) or video (MP4, MOV, AVI, WebM, MKV, up to 60 MB) |
+| GET | `/api/report/{id}` | PDF report for a previous analysis |
+| GET | `/api/health` | Model status, engine and retrieval index |
+| GET | `/api/metrics` | The test metrics shown on the page |
 
 ```bash
 curl -F "file=@photo.jpg" http://localhost:7860/api/analyze
@@ -125,14 +254,9 @@ curl -F "file=@photo.jpg" http://localhost:7860/api/analyze
 }
 ```
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /api/analyze` | Image (JPG, PNG, WebP, BMP, up to 10 MB) or video (MP4, MOV, AVI, WebM, MKV, up to 60 MB) |
-| `GET /api/report/{id}` | PDF report for a previous analysis |
-| `GET /api/health` | Model status and engine |
-| `GET /api/metrics` | The test metrics shown on the page |
+---
 
-## Reproduce the model
+## 🔁 Reproduce the Model
 
 ```bash
 pip install -r ml/requirements.txt
@@ -147,41 +271,38 @@ Notebooks: [data exploration](ml/notebooks/01_data_exploration.ipynb),
 [training and evaluation](ml/notebooks/02_training_and_evaluation.ipynb),
 [optional GPU fine-tune](ml/notebooks/03_full_finetune_gpu.ipynb).
 
-## Project layout
+## 📁 Project Structure
 
 ```
-app/            FastAPI service, web UI (app/static), services (detector, classifier, analyzer, report)
+app/            FastAPI service, web UI (app/static), services (detector, classifier, analyzer, similar, report)
 ml/             data preparation, training, evaluation scripts and notebooks
-models/         trained fusion head (backbone weights download at build time)
+models/         trained fusion head and retrieval index (backbone weights download at start)
 reports/        metrics and figures from the held-out test
 tests/          pytest suite (runs with a stub model, no downloads)
-docs/           architecture, datasets, deployment, model card
+docs/           architecture, datasets, deployment, model card, screenshots
 ```
 
-## Tests
+---
 
-```bash
-pip install -r requirements-dev.txt
-ruff check . && DS_STUB_MODELS=1 pytest -q
-```
-
-## Limitations
+## ⚠️ Limitations
 
 DeepShield is a screening aid, not proof. It is weakest on high-quality face swaps
 (Celeb-DF), on heavily compressed re-uploads, and on generators released after its
-training data. Read the [model card](docs/MODEL_CARD.md) before relying on a result.
+training data. It judges faces only: a real face placed into a fake scene still reads as
+real. Read the [model card](docs/MODEL_CARD.md) before relying on a result.
 
-## Credits
+## 🙏 Credits
 
-* Backbones: [CommunityForensics-DeepfakeDet-ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT)
-  ([Park and Owens, CVPR 2025](https://arxiv.org/abs/2411.04125)) and
-  [deepfake-detector-model-v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1).
-* Face detector: [OpenCV YuNet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet).
-* Datasets: [140k Real and Fake Faces](https://huggingface.co/datasets/TheKernel01/140k-Real-and-Fake-Faces),
-  [DeepFakeFace](https://arxiv.org/abs/2309.02218), [Celeb-DF v2](https://arxiv.org/abs/1909.12962),
-  [FaceForensics++ / Google DFD](https://arxiv.org/abs/1901.08971).
-* Font: [Archivo](https://github.com/Omnibus-Type/Archivo) by Omnibus-Type (SIL Open Font License).
+- **Backbones:** [CommunityForensics-DeepfakeDet-ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT) ([Park and Owens, CVPR 2025](https://arxiv.org/abs/2411.04125)) and [deepfake-detector-model-v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1)
+- **Face detector:** [OpenCV YuNet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
+- **Datasets:** [140k Real and Fake Faces](https://huggingface.co/datasets/TheKernel01/140k-Real-and-Fake-Faces), [DeepFakeFace](https://arxiv.org/abs/2309.02218), [Celeb-DF v2](https://arxiv.org/abs/1909.12962), [FaceForensics++ / Google DFD](https://arxiv.org/abs/1901.08971)
+- **Font:** [Archivo](https://github.com/Omnibus-Type/Archivo) by Omnibus-Type (SIL Open Font License)
 
-## License
+## 👤 Author
+
+Built by **Moamen Ahmed Fouad** for the DEPI Machine Learning track (2026).
+[GitHub @MoamenFouad](https://github.com/MoamenFouad)
+
+## 📄 License
 
 MIT, see [LICENSE](LICENSE). Model weights and datasets keep their own licenses.

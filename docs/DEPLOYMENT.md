@@ -52,11 +52,13 @@ git push space main         # username: your HF username, password: the token
 Free Spaces sleep after 48 hours without traffic and wake on the next visit
 (about 30 to 60 seconds). Open the link a few minutes before you present.
 
-### Why the README starts with a YAML block
+### Where the Space settings live
 
-Spaces read the front matter at the top of `README.md` (`sdk: docker`,
-`app_port: 7860`, title, emoji, colors). GitHub shows it as a small table; that
-is expected.
+Spaces read YAML front matter at the top of `README.md` (`sdk: docker`,
+`app_port: 7860`, title, emoji, colors). To keep the GitHub README clean, that block
+lives in `.github/hf-space-header.md`, and the deploy workflow adds it to the top of
+the README in a commit that is pushed to the Space only. Edit that file to change the
+Space title, emoji or colors.
 
 ## Local
 
