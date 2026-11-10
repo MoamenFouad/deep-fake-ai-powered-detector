@@ -12,6 +12,14 @@ At inference the app projects a new face the same way and returns its 5 nearest
 training faces by cosine similarity, with their label and the kind of fake.
 Only numbers and labels are stored, never dataset images.
 
+It also sets the "unfamiliar image" threshold. For every training face we find its
+closest training face from a different person or video (so a face is never matched
+with itself or its own clip) and take the 2nd percentile of those similarities. A new
+face whose closest known case is below that value is unlike almost everything the
+model was trained on, and the app reports it as inconclusive instead of trusting the
+score. The threshold uses training data only; the test split is used just to report
+how often it fires and how accurate those faces are.
+
 The script also reports how well a plain 5-nearest-neighbour vote does on the
 held-out test split, so the evidence shown in the app is backed by a number.
 
@@ -80,6 +88,7 @@ def main() -> None:
     ap.add_argument("--out", default="models/similar_index.npz")
     ap.add_argument("--dims", type=int, default=64)
     ap.add_argument("--k", type=int, default=5)
+    ap.add_argument("--unfamiliar-pct", type=float, default=2.0)
     args = ap.parse_args()
 
     head = FusionHead(ROOT / args.head)
@@ -110,6 +119,23 @@ def main() -> None:
         report[src] = metrics(sub.label.to_numpy(), knn_p[sub.index.to_numpy()])
     agree = float(((knn_p >= 0.5) == (y_test == 1)).mean())
     report["majority_vote_accuracy"] = round(agree, 4)
+
+    # Unfamiliar-image threshold, from training faces only (leave-group-out).
+    groups = df.group.astype(str).to_numpy()[train]
+    train_sims = vec_train @ vec_train.T
+    train_sims[groups[:, None] == groups[None, :]] = -1.0
+    threshold = float(np.percentile(train_sims.max(1), args.unfamiliar_pct))
+    flagged = sims.max(1) < threshold
+    fused = head.predict(feats[test]) >= 0.5
+    correct = fused == (y_test == 1)
+    report["unfamiliar"] = {
+        "threshold": round(threshold, 4),
+        "train_percentile": args.unfamiliar_pct,
+        "test_flagged": int(flagged.sum()),
+        "test_flagged_share": round(float(flagged.mean()), 4),
+        "accuracy_flagged": round(float(correct[flagged].mean()), 4) if flagged.any() else None,
+        "accuracy_rest": round(float(correct[~flagged].mean()), 4),
+    }
     print(json.dumps(report, indent=1))
 
     kinds = np.array([KINDS.index(kind_of(r)) for _, r in df[train].iterrows()], dtype=np.int8)
@@ -119,6 +145,7 @@ def main() -> None:
         mean=mean.astype(np.float32), components=comps,
         vectors=vec_train.astype(np.float16), labels=y_train.astype(np.int8),
         kinds=kinds, kind_names=np.array(KINDS), model_ids=np.array(head.model_ids),
+        unfamiliar_threshold=np.float32(threshold),
     )
     (ROOT / "reports" / "similar_index.json").write_text(json.dumps(report, indent=2))
     size = (ROOT / args.out).stat().st_size / 1024

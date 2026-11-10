@@ -47,5 +47,13 @@
     "eer": 0.016,
     "n": 500
   },
-  "majority_vote_accuracy": 0.775
+  "majority_vote_accuracy": 0.775,
+  "unfamiliar": {
+    "threshold": 0.5764,
+    "train_percentile": 2.0,
+    "test_flagged": 27,
+    "test_flagged_share": 0.0205,
+    "accuracy_flagged": 0.6667,
+    "accuracy_rest": 0.8306
+  }
 }
