@@ -12,7 +12,7 @@
 
 [![CI](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml)
 ![Test AUC](https://img.shields.io/badge/test_AUC-0.920-0d0d0d)
-![Version](https://img.shields.io/badge/version-1.1.0-ffd400)
+![Version](https://img.shields.io/badge/version-1.2.0-ffd400)
 ![License](https://img.shields.io/badge/license-MIT-0d0d0d)
 
 > **Drop a photo or a video. See if the face is real. See why.**
@@ -44,6 +44,7 @@ can be exported as a PDF forensic report.
 - **Evidence map:** Grad-CAM heatmap with a drag slider to compare it against the original face
 - **Detector agreement:** both backbones' raw scores, with a note when the fusion head overrides them
 - **Closest known cases (retrieval):** each face is matched against 3,440 labeled training faces and the 5 nearest are shown with their kind of fake ("5 of 5 are StyleGAN faces"). Only 64-number fingerprints and labels are stored, never images
+- **Unfamiliar-image guard:** when even the closest known face is a weak match, the result is reported as inconclusive instead of a confident wrong answer (fires on 2% of test faces, where accuracy drops to 67%)
 - **Video timeline:** 24 sampled frames scored and plotted; click a point to jump the video there
 
 ### ⚡ Experience
@@ -292,7 +293,8 @@ docs/           architecture, datasets, deployment, model card, screenshots
 
 DeepShield is a screening aid, not proof. It is weakest on high-quality face swaps
 (Celeb-DF), on heavily compressed re-uploads, and on generators released after its
-training data. It judges faces only: a real face placed into a fake scene still reads as
+training data, and unusual photos such as strong coloured stage lighting can fool it.
+The unfamiliar-image guard catches some of these cases, not all. It judges faces only: a real face placed into a fake scene still reads as
 real. Read the [model card](docs/MODEL_CARD.md) before relying on a result.
 
 ## 🙏 Credits

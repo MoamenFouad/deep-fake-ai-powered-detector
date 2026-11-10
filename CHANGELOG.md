@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0 (November 2026)
+
+### New
+- **Unfamiliar-image guard.** If even the closest known training face is a weak match
+  (similarity below 0.576, the 2nd percentile measured on training faces), the face is
+  outside what the model has learned. The result is reported as inconclusive with an
+  "Unfamiliar image" note instead of a confident score. On the test split it fires on
+  2.0% of faces, where the fusion head's accuracy is 66.7% versus 83.1% elsewhere.
+  Each face in `POST /api/analyze` has an `unfamiliar` flag, and the PDF report
+  explains it.
+
+### Changed
+- Version 1.2.0.
+
 ## 1.1.0 (November 2026)
 
 ### New

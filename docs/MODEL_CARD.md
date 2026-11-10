@@ -107,8 +107,34 @@ plain 5-nearest-neighbour vote was scored on the same held-out test split
 
 Retrieval is strong for generated and diffusion faces and weak for video face swaps,
 where the nearest faces tend to be the same actors rather than the same kind of
-manipulation. That is why it is shown as supporting evidence and never changes the
-verdict.
+manipulation. That is why it is shown as supporting evidence and never decides the
+verdict on its own.
+
+## Unfamiliar-image guard (added in v1.2)
+
+Retrieval also tells the app when a face is unlike anything it was trained on. If even
+the closest known face is a weak match, the fusion score is not trusted: the face and
+the result are reported as **inconclusive** with an "Unfamiliar image" note, and the
+raw score is still shown.
+
+The cut-off comes from training data only. For each training face we take its most
+similar training face from a different person or video, and the threshold is the 2nd
+percentile of those similarities (0.576). On the held-out test split
+(`reports/similar_index.json`):
+
+| Test faces | Share | Fusion head accuracy |
+|---|---|---|
+| Flagged as unfamiliar | 27 of 1,320 (2.0%) | 66.7% |
+| All others | 1,293 (98.0%) | 83.1% |
+
+So the guard only fires on a small set of faces where the model really is less
+reliable. AUC is unchanged because the probabilities are not altered.
+
+It is a partial fix, not a cure. In a manual check with two out-of-domain photos, it
+caught a portrait from a recent AI generator that the model had scored as 11% fake
+(closest-case similarity 0.50, flagged). It did not catch a real concert photo with
+heavy red stage lighting that the model scored as 97% fake (similarity 0.65, above the
+threshold).
 
 ## Limitations and known failure modes
 
@@ -129,6 +155,9 @@ verdict.
   faces, so accuracy across skin tones, ages and genders is unknown.
 * **Scores are not calibrated probabilities across domains.** That is why the UI
   shows an "inconclusive" band between 40% and 60%.
+* **Unusual photography.** Strong coloured lighting, filters and heavy colour grading
+  are rare in the training data and can push a real face toward "fake". The
+  unfamiliar-image guard catches some of these cases, not all.
 
 ## Ethical considerations
 

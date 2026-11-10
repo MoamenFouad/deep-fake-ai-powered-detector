@@ -53,7 +53,10 @@ flowchart LR
    L2-normalized. Cosine similarity against the 3,440 training faces returns the 5
    nearest, with their label and kind of fake. Built offline by
    `ml/scripts/build_similar_index.py`; the 686 KB index holds numbers and labels
-   only. It is evidence for the user, not an input to the verdict.
+   only. It is evidence for the user, not an input to the score. One exception: if
+   the closest case is below the unfamiliar threshold stored in the index (0.576, the
+   2nd percentile of leave-group-out similarities between training faces), the face
+   is outside what the model learned and the verdict becomes "inconclusive".
 9. **Report**: results are kept in a 64-entry in-memory LRU so the PDF can be
    generated on demand. Uploaded files are never written to permanent storage
    (videos touch a temp file that is deleted immediately after decoding).
