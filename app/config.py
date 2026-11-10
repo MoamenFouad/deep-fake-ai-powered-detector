@@ -16,7 +16,7 @@ def _env_list(name: str, default: str) -> list[str]:
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "DeepShield"
-    version: str = "1.0.0"
+    version: str = "1.1.0"
 
     # Pretrained backbones (Hugging Face model ids). Each must be an image
     # classifier whose labels contain a "fake"/"deepfake" class.
@@ -28,6 +28,9 @@ class Settings:
     )
     # Fine-tuned stacking head trained on top of the backbones (see ml/).
     head_path: Path = Path(os.getenv("DS_HEAD_PATH", ROOT_DIR / "models" / "fusion_head.npz"))
+    # Closest-known-cases index built from the training faces (see ml/scripts/build_similar_index.py).
+    similar_index_path: Path = Path(os.getenv("DS_SIMILAR_INDEX", ROOT_DIR / "models" / "similar_index.npz"))
+    similar_k: int = int(os.getenv("DS_SIMILAR_K", "5"))
     face_model_path: Path = Path(
         os.getenv("DS_FACE_MODEL", ROOT_DIR / "models" / "face_detection_yunet_2023mar.onnx")
     )

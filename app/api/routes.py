@@ -52,6 +52,7 @@ def health() -> HealthResponse:
         models_loaded=loaded,
         engine=analyzer.classifier.engine if analyzer else "loading",
         backbones=list(analyzer.classifier.names) if analyzer else settings.model_ids,
+        similar_cases=bool(analyzer and analyzer.similar is not None),
     )
 
 

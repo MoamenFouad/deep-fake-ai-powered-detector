@@ -29,6 +29,13 @@ NOTE_TEXT = {
 }
 
 
+KIND_TEXT = {
+    "ffhq": "FFHQ photo", "stylegan": "StyleGAN face", "imdb_wiki": "celebrity photo",
+    "sd_text2img": "Stable Diffusion image", "sd_inpainting": "diffusion edit", "insightface": "InsightFace swap",
+    "celebdf_real": "Celeb-DF real", "celebdf_swap": "Celeb-DF swap", "dfd_real": "DFD real", "dfd_swap": "DFD swap",
+}
+
+
 def _img(b64: str | None, width: float) -> Image | str:
     if not b64:
         return ""
@@ -112,7 +119,14 @@ def build_pdf(result: AnalysisResult) -> bytes:
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f3f5")),
             ("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor("#dddddd")),
         ]))
-        story += [imgs, Spacer(1, 2 * mm), scores, Spacer(1, 5 * mm)]
+        story += [imgs, Spacer(1, 2 * mm), scores, Spacer(1, 2 * mm)]
+        if face.similar:
+            fakes = sum(s.label == "fake" for s in face.similar)
+            kinds = ", ".join(f"{KIND_TEXT.get(s.kind, s.kind)} ({s.label}, {s.similarity:.2f})" for s in face.similar)
+            story.append(Paragraph(
+                f"<b>Closest known cases:</b> {fakes} of {len(face.similar)} most similar training faces are fakes. "
+                f"{kinds}.", small))
+        story.append(Spacer(1, 5 * mm))
 
     chart = _timeline_chart(result)
     if chart:

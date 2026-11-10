@@ -4,6 +4,7 @@ def test_health(client):
     body = r.json()
     assert body["status"] == "ok"
     assert "version" in body
+    assert body["similar_cases"] is False  # the stub model has no retrieval index
 
 
 def test_index_served(client):
@@ -24,6 +25,7 @@ def test_analyze_image(client, png_bytes):
     face = body["faces"][0]
     assert face["crop_png"] and face["heatmap_png"]
     assert set(face["model_scores"]) == {"stub-a", "stub-b"}
+    assert face["similar"] == []
 
 
 def test_analyze_video_returns_timeline(client, mp4_bytes):

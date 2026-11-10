@@ -30,7 +30,12 @@ def get_analyzer() -> Analyzer:
                     from app.services.classifier import DeepfakeClassifier
 
                     classifier = DeepfakeClassifier(settings.model_ids, settings.head_path)
-                _analyzer = Analyzer(settings, FaceDetector(settings.face_model_path), classifier)
+                similar = None
+                if not settings.use_stub_models:
+                    from app.services.similar import load_index
+
+                    similar = load_index(settings.similar_index_path, settings.model_ids)
+                _analyzer = Analyzer(settings, FaceDetector(settings.face_model_path), classifier, similar)
                 log.info("Analyzer ready (engine=%s, faces=%s)", classifier.engine, _analyzer.detector.backend)
     return _analyzer
 

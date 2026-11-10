@@ -16,6 +16,12 @@ class Box(BaseModel):
     h: int
 
 
+class SimilarCase(BaseModel):
+    label: Literal["real", "fake"]
+    kind: str = Field(..., description="Source of the known face, e.g. stylegan, sd_inpainting, celebdf_swap, ffhq")
+    similarity: float = Field(..., description="Cosine similarity in the retrieval space, -1..1")
+
+
 class FaceResult(BaseModel):
     box: Box | None = Field(None, description="Face location; null when the whole image was analyzed")
     fake_probability: float = Field(..., ge=0, le=1)
@@ -23,6 +29,8 @@ class FaceResult(BaseModel):
     model_scores: dict[str, float] = Field(default_factory=dict, description="Per-backbone fake probability")
     crop_png: str | None = Field(None, description="Base64 PNG of the face crop")
     heatmap_png: str | None = Field(None, description="Base64 PNG Grad-CAM overlay")
+    similar: list[SimilarCase] = Field(
+        default_factory=list, description="Closest known faces from the training set (labels only, no images)")
 
 
 class TimelinePoint(BaseModel):
@@ -53,3 +61,4 @@ class HealthResponse(BaseModel):
     models_loaded: bool
     engine: str
     backbones: list[str]
+    similar_cases: bool = False

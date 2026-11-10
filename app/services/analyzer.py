@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 
 from app.config import Settings
-from app.schemas import AnalysisResult, Box, FaceResult, TimelinePoint
+from app.schemas import AnalysisResult, Box, FaceResult, SimilarCase, TimelinePoint
 from app.services.face_detector import FaceDetector, crop_face
 from app.services.imaging import InvalidMediaError, bgr_to_pil, decode_image, overlay_heatmap, to_png_b64
 
@@ -20,10 +20,11 @@ log = logging.getLogger(__name__)
 
 
 class Analyzer:
-    def __init__(self, settings: Settings, detector: FaceDetector, classifier):
+    def __init__(self, settings: Settings, detector: FaceDetector, classifier, similar=None):
         self.s = settings
         self.detector = detector
         self.classifier = classifier
+        self.similar = similar  # SimilarIndex or None
 
     # ------------------------------------------------------------------ helpers
     def verdict(self, p: float) -> str:
@@ -37,6 +38,13 @@ class Analyzer:
         span = max(self.s.fake_threshold, 1 - self.s.fake_threshold)
         return round(min(1.0, abs(p - self.s.fake_threshold) / span), 4)
 
+    def _similar(self, score) -> list[SimilarCase]:
+        if self.similar is None or getattr(score, "features", None) is None:
+            return []
+        neighbors = self.similar.nearest(score.features, k=self.s.similar_k)[0]
+        return [SimilarCase(label="fake" if n.label else "real", kind=n.kind, similarity=round(n.similarity, 4))
+                for n in neighbors]
+
     def _face_result(self, crop, score, box) -> FaceResult:
         heat_png = None
         if score.heatmap is not None:
@@ -48,6 +56,7 @@ class Analyzer:
             model_scores={k: round(v, 4) for k, v in score.model_scores.items()},
             crop_png=to_png_b64(crop),
             heatmap_png=heat_png,
+            similar=self._similar(score),
         )
 
     # -------------------------------------------------------------------- image

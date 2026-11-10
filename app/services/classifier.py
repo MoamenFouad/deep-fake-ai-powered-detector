@@ -51,6 +51,7 @@ class FaceScore:
     fake_probability: float
     model_scores: dict[str, float]
     heatmap: np.ndarray | None = None  # HxW float in [0, 1]
+    features: np.ndarray | None = None  # fusion-head input, used for closest-case retrieval
 
 
 class Backbone:
@@ -190,8 +191,9 @@ class DeepfakeClassifier:
         if not crops:
             return []
         probs, embs = zip(*(b.forward(crops) for b in self.backbones))
+        features = build_features(list(embs), list(probs))
         if self.head is not None:
-            final = self.head.predict(build_features(list(embs), list(probs)))
+            final = self.head.predict(features)
         else:
             final = np.mean(np.stack(probs), axis=0)
 
@@ -199,7 +201,7 @@ class DeepfakeClassifier:
         for i, crop in enumerate(crops):
             scores = {b.short_name: float(p[i]) for b, p in zip(self.backbones, probs)}
             heatmap = self.backbones[0].gradcam(crop) if explain else None
-            results.append(FaceScore(float(final[i]), scores, heatmap))
+            results.append(FaceScore(float(final[i]), scores, heatmap, features[i]))
         return results
 
 
