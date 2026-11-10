@@ -1,0 +1,51 @@
+{
+  "k": 5,
+  "dims": 64,
+  "train_size": 3440,
+  "overall": {
+    "auc": 0.8102,
+    "accuracy": 0.775,
+    "precision": 0.833,
+    "recall": 0.6879,
+    "f1": 0.7535,
+    "eer": 0.2061,
+    "n": 1320
+  },
+  "celebdf": {
+    "auc": 0.46,
+    "accuracy": 0.4969,
+    "precision": 0.4912,
+    "recall": 0.175,
+    "f1": 0.2581,
+    "eer": 0.3688,
+    "n": 320
+  },
+  "dfd": {
+    "auc": 0.579,
+    "accuracy": 0.56,
+    "precision": 0.5682,
+    "recall": 0.5,
+    "f1": 0.5319,
+    "eer": 0.38,
+    "n": 200
+  },
+  "dff": {
+    "auc": 0.9305,
+    "accuracy": 0.86,
+    "precision": 0.875,
+    "recall": 0.84,
+    "f1": 0.8571,
+    "eer": 0.12,
+    "n": 300
+  },
+  "ffhq_stylegan": {
+    "auc": 0.992,
+    "accuracy": 0.988,
+    "precision": 0.9766,
+    "recall": 1.0,
+    "f1": 0.9881,
+    "eer": 0.016,
+    "n": 500
+  },
+  "majority_vote_accuracy": 0.775
+}
