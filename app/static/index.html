@@ -1,148 +1,159 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>DeepShield, deepfake detector</title>
-  <meta name="description" content="Check whether a face in a photo or video has been manipulated. Free, open source, explainable.">
+  <meta name="description" content="Check whether a face in a photo or video was generated or swapped by AI. Free, open source, explainable.">
+  <meta name="theme-color" content="#ffffff">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/static/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/fonts/fonts.css">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+  <a class="skip" href="#analyze">Skip to the detector</a>
 
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="DeepShield home">
-      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 2 4 7v8c0 7.5 5.1 13.4 12 15 6.9-1.6 12-7.5 12-15V7L16 2Z" fill="var(--ink)"/>
-        <circle cx="16" cy="14.5" r="5.2" fill="none" stroke="var(--panel)" stroke-width="2"/>
-        <path d="m19.6 18.2 4 4" stroke="var(--panel)" stroke-width="2.4" stroke-linecap="round"/>
-      </svg>
+  <header class="top">
+    <a class="logo" href="/" aria-label="DeepShield home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" fill="#0d0d0d"/><path d="M16 6 26 24H6Z" fill="#ffd400"/><path d="M16 12.5v5.5M16 20.6v.4" stroke="#0d0d0d" stroke-width="2.4" stroke-linecap="square"/></svg>
       <span>DeepShield</span>
     </a>
-    <nav class="topnav" aria-label="Page">
-      <a href="#how" data-i18n="nav_how">How it works</a>
-      <a href="#accuracy" data-i18n="nav_accuracy">Accuracy</a>
-      <a href="/docs" data-i18n="nav_api">API</a>
+    <nav class="top-nav" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#accuracy">Accuracy</a>
+      <a href="/docs">API</a>
+      <a class="gh" href="https://github.com/MoamenFouad/deep-fake-ai-powered-detector">GitHub</a>
     </nav>
-    <div class="toggles">
-      <button class="chip" id="langToggle" type="button" lang="ar" aria-label="العربية">العربية</button>
-      <button class="chip icon" id="themeToggle" type="button" aria-label="Toggle dark mode" data-i18n-aria="theme">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" fill="currentColor"/></svg>
-      </button>
-    </div>
   </header>
 
-  <main id="main">
-    <section class="lab" aria-labelledby="heroTitle">
-      <div class="intake">
-        <h1 id="heroTitle" data-i18n="hero_title">Is this face real?</h1>
-        <p class="lede" data-i18n="hero_lede">Drop a photo or a short video. DeepShield finds each face, checks it with two AI detectors, and shows you where it found evidence of manipulation.</p>
+  <main>
+    <section class="hero" aria-labelledby="heroTitle">
+      <h1 id="heroTitle">Is this face <span class="mark">real?</span></h1>
+      <div class="hero-foot">
+        <p class="lede">Drop a photo or a short video. DeepShield finds every face, checks it with two AI detectors and a model we trained, then shows you the evidence.</p>
+        <dl class="proof">
+          <div><dt>0.920</dt><dd>AUC on 1,320 faces it never saw</dd></div>
+          <div><dt>4</dt><dd>public deepfake datasets</dd></div>
+          <div><dt>2&nbsp;s</dt><dd>per photo, on a plain CPU</dd></div>
+        </dl>
+      </div>
+    </section>
 
-        <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="dropHint">
+    <section class="bench" id="analyze" aria-label="Detector">
+      <div class="intake">
+        <div class="tray" id="drop" tabindex="0" role="button" aria-label="Choose a photo or video to check" aria-describedby="dropHint">
           <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/bmp,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska" hidden>
-          <div class="drop-empty" id="dropEmpty">
-            <svg viewBox="0 0 48 48" aria-hidden="true" class="drop-icon">
-              <rect x="6" y="10" width="36" height="28" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/>
-              <circle cx="24" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
-              <path d="M14 34c2.5-4 6-6 10-6s7.5 2 10 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-            </svg>
-            <strong data-i18n="drop_title">Drop a file here, or choose one</strong>
-            <span class="muted" id="dropHint" data-i18n="drop_hint">Photos up to 10 MB. Videos up to 60 MB; the first two minutes are checked.</span>
+          <div class="tray-empty" id="dropEmpty">
+            <svg class="tent" viewBox="0 0 64 56" aria-hidden="true"><path d="M32 2 62 54H2Z" fill="#ffd400" stroke="#0d0d0d" stroke-width="3" stroke-linejoin="round"/><path d="M32 20v14m0 8v1" stroke="#0d0d0d" stroke-width="5" stroke-linecap="square"/></svg>
+            <p class="tray-title">Drop a photo or video</p>
+            <p class="tray-sub"><span class="btn ink">Choose a file</span> <span class="paste">or paste with <kbd id="pasteKey">Ctrl V</kbd></span></p>
+            <p class="tray-hint" id="dropHint">JPG, PNG, WEBP up to 10 MB. MP4, MOV, WEBM up to 60 MB.</p>
           </div>
           <div class="preview" id="preview" hidden>
             <div class="stage" id="stage"></div>
-            <div class="scan" aria-hidden="true"></div>
+            <div class="sweep" aria-hidden="true"></div>
+            <p class="scan-label" aria-hidden="true"><span class="spinner"></span><span id="scanLabel">Scanning</span></p>
           </div>
         </div>
 
-        <div class="actions">
-          <button class="btn primary" id="analyzeBtn" type="button" disabled data-i18n="analyze">Analyze file</button>
-          <button class="btn ghost" id="resetBtn" type="button" hidden data-i18n="reset">Check another file</button>
+        <div class="intake-bar">
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+          <button class="btn line sm" id="resetBtn" type="button" hidden>New file</button>
         </div>
-        <p class="status" id="status" role="status" aria-live="polite"></p>
 
         <div class="samples">
-          <span class="muted" data-i18n="samples">No file handy? Try a sample:</span>
-          <button class="link" type="button" data-sample="/static/samples/real.jpg" data-i18n="sample_real">real photo</button>
-          <button class="link" type="button" data-sample="/static/samples/fake.jpg" data-i18n="sample_fake">deepfake photo</button>
+          <p>No file handy?</p>
+          <button class="sample" type="button" data-sample="/static/samples/real.jpg"><img src="/static/samples/real.jpg" alt="" width="40" height="40"><span>Try a real photo</span></button>
+          <button class="sample" type="button" data-sample="/static/samples/fake.jpg"><img src="/static/samples/fake.jpg" alt="" width="40" height="40"><span>Try an AI face</span></button>
+        </div>
+
+        <div class="recent" id="recent" hidden>
+          <p>Recent checks</p>
+          <ul id="recentList"></ul>
         </div>
       </div>
 
-      <section class="result" id="result" aria-live="polite" aria-labelledby="resultTitle">
-        <div class="result-empty" id="resultEmpty">
-          <h2 id="resultTitle" class="h3" data-i18n="empty_title">Your result will appear here</h2>
-          <p class="muted" data-i18n="empty_body">You will get a verdict, a probability, an evidence map for every face, and a PDF report you can share. Files are analyzed in memory and never stored.</p>
+      <section class="case" id="result" aria-live="polite" aria-labelledby="caseTitle">
+        <div class="case-empty" id="resultEmpty">
+          <h2 id="caseTitle">Every check comes with four exhibits</h2>
+          <ol class="exhibits">
+            <li><span class="tag">1</span><div><h3>Verdict</h3><p>Real, inconclusive or manipulated, with the probability behind it.</p></div></li>
+            <li><span class="tag">2</span><div><h3>Evidence map</h3><p>Drag across each face to see which regions pushed the decision.</p></div></li>
+            <li><span class="tag">3</span><div><h3>Closest known cases</h3><p>The labeled faces from our dataset that look most like yours, and what made them.</p></div></li>
+            <li><span class="tag">4</span><div><h3>Timeline</h3><p>For videos, a score for every sampled frame. Click one to jump there.</p></div></li>
+          </ol>
+          <p class="privacy">Files are checked in memory and never stored.</p>
         </div>
-        <div class="result-body" id="resultBody" hidden></div>
+        <div class="case-body" id="resultBody" hidden></div>
       </section>
     </section>
 
-    <section class="band" id="how" aria-labelledby="howTitle">
-      <h2 id="howTitle" data-i18n="how_title">How a file is checked</h2>
+    <section class="block" id="how" aria-labelledby="howTitle">
+      <h2 id="howTitle">How a file is checked</h2>
       <ol class="steps">
-        <li><h3 data-i18n="s1_t">Find the faces</h3><p data-i18n="s1_b">A lightweight face detector (YuNet) locates every face. For videos, up to 24 frames are sampled across the clip.</p></li>
-        <li><h3 data-i18n="s2_t">Score with two detectors</h3><p data-i18n="s2_b">Two vision transformers, each trained on a different family of fakes, inspect every face crop.</p></li>
-        <li><h3 data-i18n="s3_t">Fuse the evidence</h3><p data-i18n="s3_b">A fusion layer we fine-tuned on four public deepfake datasets combines both models into one probability.</p></li>
-        <li><h3 data-i18n="s4_t">Show the reasoning</h3><p data-i18n="s4_b">Grad-CAM highlights the regions that pushed the decision, so you can judge the evidence yourself.</p></li>
+        <li><span class="step-n">1</span><h3>Find the faces</h3><p>A small face detector (YuNet) finds every face. Videos are sampled at up to 24 frames.</p></li>
+        <li><span class="step-n">2</span><h3>Two detectors look</h3><p>Two pretrained models, a ViT and a SigLIP, each trained on different kinds of fakes, inspect every face.</p></li>
+        <li><span class="step-n">3</span><h3>Fuse the evidence</h3><p>A fusion layer we trained on four public deepfake datasets turns both views into one probability.</p></li>
+        <li><span class="step-n">4</span><h3>Explain it</h3><p>Grad-CAM shows where the evidence is, and retrieval finds the closest known real and fake faces.</p></li>
       </ol>
     </section>
 
-    <section class="band" id="accuracy" aria-labelledby="accTitle">
-      <div class="band-head">
-        <h2 id="accTitle" data-i18n="acc_title">Measured accuracy</h2>
-        <p class="muted" data-i18n="acc_body">Tested on face crops the model never saw during training, from people and videos kept out of the training set.</p>
+    <section class="block" id="accuracy" aria-labelledby="accTitle">
+      <h2 id="accTitle">Measured on faces it never saw</h2>
+      <p class="block-lede">Test faces come from people and videos kept out of training. AUC measures how well fakes are ranked above real faces: 1.0 is perfect, 0.5 is a coin flip.</p>
+      <div class="acc">
+        <div class="acc-total" id="accHero"></div>
+        <div class="acc-chart" id="accBars"><p class="muted">Loading results</p></div>
       </div>
-      <div class="table-wrap">
-        <table class="metrics" id="metricsTable">
-          <thead><tr>
-            <th scope="col" data-i18n="col_dataset">Dataset</th>
-            <th scope="col" data-i18n="col_kind">Type of fake</th>
-            <th scope="col" class="num" data-i18n="col_auc">AUC</th>
-            <th scope="col" class="num" data-i18n="col_acc">Accuracy</th>
-            <th scope="col" class="num" data-i18n="col_base">Best single model</th>
-          </tr></thead>
-          <tbody><tr><td colspan="5" class="muted" data-i18n="loading_metrics">Loading results</td></tr></tbody>
-        </table>
-      </div>
-      <p class="fineprint muted" data-i18n="auc_explain">AUC measures how well the detector ranks fakes above real faces: 1.0 is perfect, 0.5 is a coin flip.</p>
     </section>
 
-    <section class="band limits" aria-labelledby="limTitle">
-      <h2 id="limTitle" data-i18n="lim_title">Know the limits</h2>
+    <section class="block limits" aria-labelledby="limTitle">
+      <h2 id="limTitle">Know the limits</h2>
       <ul>
-        <li data-i18n="lim1">A result is a probability, not proof. Use it alongside other checks, such as the source of the file.</li>
-        <li data-i18n="lim2">Heavy compression, tiny faces and new generation methods lower accuracy.</li>
-        <li data-i18n="lim3">The detector judges faces. A real face placed into a fake scene will still read as real.</li>
+        <li><h3>A probability, not proof</h3><p>Use it alongside other checks, such as where the file came from.</p></li>
+        <li><h3>Quality matters</h3><p>Heavy compression, tiny faces and brand-new generators lower accuracy.</p></li>
+        <li><h3>Faces only</h3><p>A real face placed into a fake scene still reads as real.</p></li>
       </ul>
     </section>
   </main>
 
   <footer class="foot">
-    <p data-i18n="footer">Built by Moamen Fouad for the DEPI Machine Learning track. Open source on GitHub.</p>
-    <a href="https://github.com/MoamenFouad/deep-fake-ai-powered-detector">GitHub</a>
+    <p class="foot-mark" aria-hidden="true">DeepShield</p>
+    <div class="foot-row">
+      <p>Built by Moamen Fouad for the DEPI Machine Learning track.</p>
+      <a href="https://github.com/MoamenFouad/deep-fake-ai-powered-detector">Source on GitHub</a>
+    </div>
   </footer>
+
+  <div class="drop-overlay" id="dropOverlay" hidden><p>Drop to check this file</p></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <template id="faceTpl">
     <article class="face">
-      <div class="face-media">
       <div class="wipe" style="--pos:50%">
         <img class="wipe-a" alt="">
         <img class="wipe-b" alt="">
-        <input class="wipe-range" type="range" min="0" max="100" value="50">
+        <input class="wipe-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare the original face with the evidence map">
         <span class="wipe-handle" aria-hidden="true"></span>
-      </div>
+        <span class="tag sm wipe-n">2</span><span class="wipe-tag a">Original</span><span class="wipe-tag b">Evidence map</span>
       </div>
       <div class="face-info">
-        <p class="face-title"></p>
-        <p class="face-score"></p>
-        <dl class="backbones"></dl>
+        <div class="face-head"><p class="face-title"></p><p class="face-score"></p></div>
+        <div class="exhibit">
+          <p class="exhibit-title">Detector agreement</p>
+          <dl class="backbones"></dl>
+          <p class="note agree"></p>
+        </div>
+        <div class="exhibit similar" hidden>
+          <p class="exhibit-title"><span class="tag sm">3</span>Closest known cases</p>
+          <ul class="neighbors"></ul>
+          <p class="note sim-note"></p>
+        </div>
       </div>
     </article>
   </template>
 
-  <script src="/static/i18n.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
