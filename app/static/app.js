@@ -17,6 +17,7 @@
     no_face: "No face was found, so the whole image was checked. Results are less reliable this way.",
     multiple_faces: "Several faces were found. The verdict follows the most suspicious face.",
     partial_faces: "A face was visible in only some frames. Frames without a face were skipped.",
+    unfamiliar_frame: "The most suspicious frame looks unlike anything DeepShield was trained on. Treat this result with extra care.",
   };
   const KINDS = {
     ffhq: "FFHQ photo", stylegan: "StyleGAN face", imdb_wiki: "Celebrity photo",
@@ -283,13 +284,16 @@
     const body = $("#resultBody");
     body.replaceChildren();
 
-    const sub = r.verdict === "uncertain"
-      ? "The evidence sits between 40% and 60%, so DeepShield will not guess. Check the source of the file."
-      : `${pct(r.confidence, 0)} confidence. The face shows ${strength(r.fake_probability)} signs of AI manipulation.`;
+    const unfamiliar = r.notes.includes("unfamiliar");
+    const sub = unfamiliar
+      ? "This face is unlike the faces DeepShield was trained on (unusual lighting, heavy editing or a newer AI generator), so the score above is not trusted. Check the source of the file."
+      : r.verdict === "uncertain"
+        ? "The evidence sits between 40% and 60%, so DeepShield will not guess. Check the source of the file."
+        : `${pct(r.confidence, 0)} confidence. The face shows ${strength(r.fake_probability)} signs of AI manipulation.`;
     body.append(el("section", { class: "verdict", "data-v": r.verdict, "aria-label": VERDICT[r.verdict] },
       el("div", { class: "verdict-row" },
         el("div", {},
-          el("p", { class: "verdict-kicker" }, tag(1), KICKER[r.verdict]),
+          el("p", { class: "verdict-kicker" }, tag(1), unfamiliar ? "Unfamiliar image" : KICKER[r.verdict]),
           el("h2", { class: "verdict-word" }, VERDICT[r.verdict])),
         el("p", { class: "verdict-num" }, el("b", {}, pct(r.fake_probability)), el("span", {}, "manipulation probability"))),
       el("div", { role: "img", "aria-label": `${pct(r.fake_probability)} manipulation probability on a scale from real to fake` },
@@ -385,8 +389,11 @@
       const counts = {};
       side.forEach((s) => { counts[s.kind] = (counts[s.kind] || 0) + 1; });
       const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-      $(".sim-note", box).textContent = `${side.length} of the ${k} most similar known faces are ${side === fakes ? "fakes" : "real"}, `
-        + `mostly ${KINDS[top] || top}.`;
+      $(".sim-note", box).textContent = f.unfamiliar
+        ? `Even the closest known face is a weak match (similarity ${fixed(f.similar[0].similarity, 2)}), `
+          + "so this face is outside what the model has learned."
+        : `${side.length} of the ${k} most similar known faces are ${side === fakes ? "fakes" : "real"}, `
+          + `mostly ${KINDS[top] || top}.`;
     }
     return node;
   }

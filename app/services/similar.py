@@ -37,6 +37,9 @@ class SimilarIndex:
         self.kinds = data["kinds"].astype(int)
         self.kind_names = [str(k) for k in data["kind_names"]]
         self.model_ids = [str(m) for m in data["model_ids"]]
+        # Faces whose closest known case is below this similarity are "unfamiliar".
+        self.unfamiliar_threshold = (
+            float(data["unfamiliar_threshold"]) if "unfamiliar_threshold" in data.files else None)
         log.info("Similar-case index: %d faces", len(self.labels))
 
     def project(self, features: np.ndarray) -> np.ndarray:
@@ -51,6 +54,9 @@ class SimilarIndex:
             top = np.argsort(-row)[:k]
             out.append([Neighbor(int(self.labels[i]), self.kind_names[self.kinds[i]], float(row[i])) for i in top])
         return out
+
+    def is_unfamiliar(self, best_similarity: float) -> bool:
+        return self.unfamiliar_threshold is not None and best_similarity < self.unfamiliar_threshold
 
 
 def load_index(path: Path, model_ids: list[str]) -> SimilarIndex | None:

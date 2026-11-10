@@ -16,7 +16,7 @@ def _env_list(name: str, default: str) -> list[str]:
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "DeepShield"
-    version: str = "1.1.0"
+    version: str = "1.2.0"
 
     # Pretrained backbones (Hugging Face model ids). Each must be an image
     # classifier whose labels contain a "fake"/"deepfake" class.

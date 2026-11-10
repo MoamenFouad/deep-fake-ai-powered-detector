@@ -26,6 +26,10 @@ NOTE_TEXT = {
     "no_face": "No face was detected, so the whole frame was analyzed. Accuracy is lower in this mode.",
     "multiple_faces": "Several faces were found. The overall score is the highest face score.",
     "partial_faces": "A face was found in only some frames; frames without a face are skipped.",
+    "unfamiliar": "This face is unlike the faces the model was trained on (for example unusual lighting, "
+                  "heavy editing or a newer AI generator), so the result is reported as inconclusive.",
+    "unfamiliar_frame": "The most suspicious frame is unlike the faces the model was trained on, so treat "
+                        "the video result with extra care.",
 }
 
 

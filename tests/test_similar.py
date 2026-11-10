@@ -15,12 +15,8 @@ from app.services.similar import SimilarIndex, load_index
 DIM = 6
 
 
-@pytest.fixture()
-def index_path(tmp_path):
-    rng = np.random.default_rng(0)
-    vectors = rng.normal(size=(8, 3))
-    vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
-    path = tmp_path / "index.npz"
+def _write_index(path, vectors, threshold=None):
+    extra = {} if threshold is None else {"unfamiliar_threshold": np.float32(threshold)}
     np.savez(
         path,
         shift=np.zeros(DIM, np.float32), scale=np.ones(DIM, np.float32),
@@ -29,7 +25,17 @@ def index_path(tmp_path):
         kinds=np.array([1, 1, 3, 3, 0, 0, 2, 2], np.int8),
         kind_names=np.array(["ffhq", "stylegan", "imdb_wiki", "sd_inpainting"]),
         model_ids=np.array(["a/one", "b/two"]),
+        **extra,
     )
+
+
+@pytest.fixture()
+def index_path(tmp_path):
+    rng = np.random.default_rng(0)
+    vectors = rng.normal(size=(8, 3))
+    vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
+    path = tmp_path / "index.npz"
+    _write_index(path, vectors)
     return path, vectors
 
 
@@ -78,3 +84,25 @@ def test_no_index_means_no_similar_cases():
     analyzer = Analyzer(settings, FaceDetector(settings.face_model_path), _FeatureStub(), None)
     ok, png = cv2.imencode(".png", np.full((64, 64, 3), 128, np.uint8))
     assert analyzer.analyze_image(png.tobytes(), "x.png").faces[0].similar == []
+
+
+def _png():
+    ok, png = cv2.imencode(".png", np.full((64, 64, 3), 128, np.uint8))
+    return png.tobytes()
+
+
+@pytest.mark.parametrize("threshold, unfamiliar", [(0.999, True), (-1.0, False), (None, False)])
+def test_unfamiliar_face_is_inconclusive(index_path, tmp_path, threshold, unfamiliar):
+    _, vectors = index_path
+    path = tmp_path / "guard.npz"
+    _write_index(path, vectors, threshold)
+    analyzer = Analyzer(settings, FaceDetector(settings.face_model_path), _FeatureStub(), SimilarIndex(path))
+    result = analyzer.analyze_image(_png(), "x.png")
+    face = result.faces[0]
+    assert face.unfamiliar is unfamiliar
+    if unfamiliar:
+        # The stub scores 0.9 (fake), but an unfamiliar face must not get a confident verdict.
+        assert result.verdict == "uncertain" and face.verdict == "uncertain"
+        assert result.confidence == 0.0 and "unfamiliar" in result.notes
+    else:
+        assert result.verdict == "fake" and "unfamiliar" not in result.notes

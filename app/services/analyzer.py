@@ -49,14 +49,19 @@ class Analyzer:
         heat_png = None
         if score.heatmap is not None:
             heat_png = to_png_b64(overlay_heatmap(crop, score.heatmap))
+        similar = self._similar(score)
+        # Unfamiliar: even the closest training face is a weak match, so the model is
+        # outside what it learned and its score should not be trusted on its own.
+        unfamiliar = bool(similar) and self.similar.is_unfamiliar(similar[0].similarity)
         return FaceResult(
             box=box,
             fake_probability=round(score.fake_probability, 4),
-            verdict=self.verdict(score.fake_probability),
+            verdict="uncertain" if unfamiliar else self.verdict(score.fake_probability),
             model_scores={k: round(v, 4) for k, v in score.model_scores.items()},
             crop_png=to_png_b64(crop),
             heatmap_png=heat_png,
-            similar=self._similar(score),
+            similar=similar,
+            unfamiliar=unfamiliar,
         )
 
     # -------------------------------------------------------------------- image
@@ -75,17 +80,22 @@ class Analyzer:
         scores = self.classifier.score([bgr_to_pil(c) for c in crops], explain=True)
         face_results = [self._face_result(c, s, b) for c, s, b in zip(crops, scores, boxes)]
         # An image is manipulated if any face in it is manipulated.
-        p = max(f.fake_probability for f in face_results)
+        decisive = max(face_results, key=lambda f: f.fake_probability)
+        p = decisive.fake_probability
         if len(face_results) > 1:
             notes.append("multiple_faces")
+        verdict, confidence = self.verdict(p), self.confidence(p)
+        if decisive.unfamiliar:
+            verdict, confidence = "uncertain", 0.0
+            notes.append("unfamiliar")
 
         return AnalysisResult(
             id=uuid.uuid4().hex[:12],
             media_type="image",
             filename=filename,
-            verdict=self.verdict(p),
+            verdict=verdict,
             fake_probability=round(p, 4),
-            confidence=self.confidence(p),
+            confidence=confidence,
             faces=face_results,
             frames_analyzed=1,
             processing_ms=int((time.perf_counter() - t0) * 1000),
@@ -171,6 +181,8 @@ class Analyzer:
         explained = self.classifier.score([bgr_to_pil(crops[top])], explain=True)[0]
         explained.fake_probability = float(probs[top])
         top_face = self._face_result(crops[top], explained, owners[top][1])
+        if top_face.unfamiliar:
+            notes.append("unfamiliar_frame")
 
         return AnalysisResult(
             id=uuid.uuid4().hex[:12],

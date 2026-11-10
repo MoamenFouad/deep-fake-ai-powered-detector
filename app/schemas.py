@@ -31,6 +31,8 @@ class FaceResult(BaseModel):
     heatmap_png: str | None = Field(None, description="Base64 PNG Grad-CAM overlay")
     similar: list[SimilarCase] = Field(
         default_factory=list, description="Closest known faces from the training set (labels only, no images)")
+    unfamiliar: bool = Field(
+        False, description="True when even the closest known face is a weak match, so the score is not trusted")
 
 
 class TimelinePoint(BaseModel):
