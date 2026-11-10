@@ -1,75 +1,54 @@
-# Deployment
+# Running and sharing DeepShield
 
-DeepShield ships as one Docker image. The default target is **Hugging Face Spaces**
-(free CPU tier, public URL, no credit card). The same image runs anywhere Docker runs.
+DeepShield runs on any machine with Python 3.12. No GPU, Docker or cloud account is
+needed. The two backbone models are downloaded once, for free, from the
+[Hugging Face Hub](https://huggingface.co/) the first time the app starts (about
+700 MB) and are cached after that.
 
-## Hugging Face Spaces (recommended)
-
-### 1. One-time setup on Hugging Face (5 minutes)
-
-1. Create a free account at [huggingface.co/join](https://huggingface.co/join).
-2. Go to [huggingface.co/new-space](https://huggingface.co/new-space) and fill in:
-   * **Space name:** `deepshield`
-   * **License:** MIT
-   * **SDK:** Docker, then **Blank** template
-   * **Hardware:** CPU basic (free)
-   * **Visibility:** Public
-3. Create an access token at
-   [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens):
-   **Create new token**, type **Write**, name it `github-deploy`. Copy it once;
-   Hugging Face will not show it again. Never paste it into code, chats or commits.
-
-### 2a. Automatic deploys from GitHub (recommended)
-
-Every push to `main` that passes CI is pushed to the Space by
-`.github/workflows/deploy-hf.yml`.
-
-1. In GitHub, open the repo, then **Settings > Secrets and variables > Actions**.
-2. **Secrets** tab, **New repository secret**: name `HF_TOKEN`, value: the token.
-3. **Variables** tab, **New repository variable**: name `HF_SPACE`, value
-   `<your-hf-username>/deepshield`.
-4. Push to `main` (or run the workflow manually from the **Actions** tab).
-5. Watch the build in the Space's **Logs** tab. The first build takes 8 to 12
-   minutes because it bakes about 700 MB of model weights into the image. Later
-   builds reuse cached layers.
-
-### 2b. Manual push (alternative)
+## 1. Run it on your computer
 
 ```bash
-brew install git-lfs        # macOS; once per machine
-git lfs install
-git remote add space https://huggingface.co/spaces/<your-hf-username>/deepshield
-git push space main         # username: your HF username, password: the token
-```
+git clone https://github.com/MoamenFouad/deep-fake-ai-powered-detector.git
+cd deep-fake-ai-powered-detector
 
-### 3. Check it
-
-* `https://<your-hf-username>-deepshield.hf.space/` shows the app.
-* `.../api/health` returns `"models_loaded": true` and `"engine": "fusion-head"`
-  about 30 seconds after the container starts.
-* `.../docs` is the interactive API documentation (Swagger UI).
-
-Free Spaces sleep after 48 hours without traffic and wake on the next visit
-(about 30 to 60 seconds). Open the link a few minutes before you present.
-
-### Where the Space settings live
-
-Spaces read YAML front matter at the top of `README.md` (`sdk: docker`,
-`app_port: 7860`, title, emoji, colors). To keep the GitHub README clean, that block
-lives in `.github/hf-space-header.md`, and the deploy workflow adds it to the top of
-the README in a commit that is pushed to the Space only. Edit that file to change the
-Space title, emoji or colors.
-
-## Local
-
-```bash
-# Docker
-docker compose up --build        # http://localhost:7860
-
-# Or plain Python
+python3.12 -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 7860
+
+uvicorn app.main:app --port 7860
+```
+
+Open <http://localhost:7860>. About 30 seconds after start-up,
+<http://localhost:7860/api/health> shows `"models_loaded": true`.
+
+## 2. Share a public link (Cloudflare Tunnel)
+
+A [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)
+gives the running app a public HTTPS address. It is free and needs no account.
+
+```bash
+# once
+brew install cloudflared             # macOS. Other systems: see the Cloudflare link above
+
+# every time, in a second terminal while the app is running
+cloudflared tunnel --url http://localhost:7860
+```
+
+It prints a link like `https://random-words.trycloudflare.com`. Anyone can open it,
+including from a phone. The link works while your computer and both terminals stay
+open, and a new link is generated every time you start the tunnel.
+
+Before a presentation: start the app, start the tunnel, open the link on your phone
+once to check it, and keep the laptop plugged in with sleep turned off.
+
+## 3. Docker (optional)
+
+The repository also includes a `Dockerfile` for anyone who prefers containers or
+wants to host the app on a server:
+
+```bash
+docker compose up --build            # http://localhost:7860
 ```
 
 ## Configuration
@@ -80,6 +59,8 @@ All settings are environment variables with sensible defaults (`app/config.py`).
 |---|---|---|
 | `DS_MODELS` | the two chosen backbones | Comma-separated Hugging Face model ids |
 | `DS_HEAD_PATH` | `models/fusion_head.npz` | Fusion head weights |
+| `DS_SIMILAR_INDEX` | `models/similar_index.npz` | Closest-known-cases index |
+| `DS_SIMILAR_K` | `5` | Number of closest cases shown per face |
 | `DS_STUB_MODELS` | `0` | `1` uses a deterministic stub (tests, CI) |
 | `DS_MAX_IMAGE_MB` | `10` | Image upload limit |
 | `DS_MAX_VIDEO_MB` | `60` | Video upload limit |
@@ -88,8 +69,8 @@ All settings are environment variables with sensible defaults (`app/config.py`).
 | `DS_FAKE_THRESHOLD` | `0.5` | Decision threshold |
 | `DS_UNCERTAIN_MARGIN` | `0.1` | Half-width of the "inconclusive" band |
 
-## Performance on the free tier
+## Performance
 
-Measured on 2 vCPUs: a photo with one face takes about 2 seconds including the
-Grad-CAM map; a 24-frame video takes about 15 to 25 seconds. Memory use is about
-1.5 GB with both backbones loaded (the free tier has 16 GB).
+Measured on 2 CPU cores: a photo with one face takes about 2 seconds including the
+Grad-CAM map, and a 24-frame video takes about 15 to 25 seconds. Memory use is about
+1.5 GB with both backbones loaded.

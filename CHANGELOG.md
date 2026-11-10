@@ -28,8 +28,10 @@
 - Font: Archivo (variable width and weight), self-hosted under the SIL Open Font
   License, replaces IBM Plex.
 - Version 1.1.0.
+- Hosting: the app is shared from a laptop with a free Cloudflare quick tunnel. The
+  Hugging Face Spaces deploy workflow was removed because Docker Spaces on the free
+  CPU tier now require a paid plan.
 
 ## 1.0.0 (November 2026)
 - First release: two pretrained detectors with a trained fusion head (0.920 test AUC),
-  Grad-CAM evidence maps, video timeline, PDF reports, Docker image, CI and Hugging
-  Face Spaces deployment.
+  Grad-CAM evidence maps, video timeline, PDF reports, Docker image and CI.

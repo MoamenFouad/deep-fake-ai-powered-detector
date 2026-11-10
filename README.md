@@ -173,15 +173,16 @@ Design decisions and diagram: [ARCHITECTURE.md](docs/ARCHITECTURE.md). Version h
 | Technology | Purpose |
 |---|---|
 | Docker / Docker Compose | One-command run |
-| GitHub Actions | Lint, tests, auto-deploy |
-| Hugging Face Spaces | Hosting (Docker SDK) |
+| GitHub Actions | Lint and tests on every push |
+| Hugging Face Hub | Free download of the two backbone models |
+| Cloudflare Tunnel | Free public link to the app running on a laptop |
 | Git LFS | Model files, fonts and images |
 
 ---
 
 ## 🛠️ Installation and Setup
 
-**Prerequisites:** Python 3.12+ or Docker. About 700 MB of model weights download on first start.
+**Prerequisites:** Python 3.12+. No GPU, Docker or cloud account needed. About 700 MB of model weights download on first start.
 
 **1. Clone the repository**
 
@@ -190,21 +191,17 @@ git clone https://github.com/MoamenFouad/deep-fake-ai-powered-detector.git
 cd deep-fake-ai-powered-detector
 ```
 
-**2a. Run with Docker**
+**2. Install and run**
 
 ```bash
-docker compose up --build
-# App runs on http://localhost:7860
-```
-
-**2b. Or run with Python**
-
-```bash
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 uvicorn app.main:app --port 7860
 # App runs on http://localhost:7860
 ```
+
+Prefer containers? `docker compose up --build` does the same.
 
 **3. Run the tests**
 
@@ -217,11 +214,18 @@ Tests use a stub model, so they run in seconds without downloads.
 
 ---
 
-## 📦 Deployment
+## 🌍 Share a Public Link
 
-Every push to `main` runs CI, then deploys to Hugging Face Spaces automatically once the
-`HF_TOKEN` secret and `HF_SPACE` variable are set. Step-by-step guide:
-[DEPLOYMENT.md](docs/DEPLOYMENT.md).
+The app runs on a normal laptop CPU, and a free
+[Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)
+turns it into a public HTTPS link that opens on any phone. No account or credit card needed.
+
+```bash
+brew install cloudflared                        # once (macOS)
+cloudflared tunnel --url http://localhost:7860  # while the app is running
+```
+
+Full guide: [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
