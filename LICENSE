@@ -20,6 +20,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Third-party components keep their own licenses: IBM Plex fonts (SIL Open Font
+Third-party components keep their own licenses: the Archivo font (SIL Open Font
 License 1.1, app/static/fonts/OFL.txt), pretrained models and datasets (see
 docs/MODEL_CARD.md and docs/DATASETS.md).

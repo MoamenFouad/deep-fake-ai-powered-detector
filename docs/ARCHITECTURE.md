@@ -5,7 +5,7 @@ Everything runs on CPU, so it fits on the free Hugging Face Spaces tier.
 
 ```mermaid
 flowchart LR
-    U[Browser<br/>bilingual UI] -- "POST /api/analyze" --> API[FastAPI]
+    U[Browser UI] -- "POST /api/analyze" --> API[FastAPI]
     API --> K{Image or video?}
     K -- image --> FD[YuNet face detector]
     K -- video --> S[Sample up to 24 frames<br/>from the first 2 minutes] --> FD
@@ -15,7 +15,9 @@ flowchart LR
     B2 -- "P(fake) + 768-d embedding" --> H
     H --> AGG[Aggregate<br/>image: max over faces<br/>video: mean + top-quartile mean]
     B1 -. gradients .-> CAM[Grad-CAM]
+    H -- "features" --> SIM[Closest known cases<br/>64-d index of 3,440 training faces]
     AGG --> R[JSON result]
+    SIM --> R
     CAM --> R
     R --> U
     R --> PDF["GET /api/report/{id}<br/>PDF forensic report"]
@@ -45,7 +47,14 @@ flowchart LR
    *inconclusive*. Showing "inconclusive" honestly is better than a coin-flip label.
 7. **Explanation**: Grad-CAM on the last transformer block of backbone A, using
    the gradient of the fake-minus-real logit, overlaid on the crop.
-8. **Report**: results are kept in a 64-entry in-memory LRU so the PDF can be
+8. **Closest known cases** (`app/services/similar.py`): the fusion features are
+   standardized, weighted by the absolute fusion coefficients (so the dimensions that
+   matter for the decision dominate), projected to 64 dimensions with PCA and
+   L2-normalized. Cosine similarity against the 3,440 training faces returns the 5
+   nearest, with their label and kind of fake. Built offline by
+   `ml/scripts/build_similar_index.py`; the 686 KB index holds numbers and labels
+   only. It is evidence for the user, not an input to the verdict.
+9. **Report**: results are kept in a 64-entry in-memory LRU so the PDF can be
    generated on demand. Uploaded files are never written to permanent storage
    (videos touch a temp file that is deleted immediately after decoding).
 
@@ -59,11 +68,13 @@ flowchart LR
 | `app/services/face_detector.py` | YuNet / Haar detection and cropping |
 | `app/services/classifier.py` | Backbones, fusion head, Grad-CAM, test stub |
 | `app/services/analyzer.py` | Image and video pipelines, verdict logic |
+| `app/services/similar.py` | Closest-known-cases retrieval over the training faces |
 | `app/services/report.py` | ReportLab PDF |
-| `app/static/` | Vanilla HTML/CSS/JS UI, English and Arabic, self-hosted fonts |
+| `app/static/` | Vanilla HTML/CSS/JS UI with a self-hosted font, no build step |
 | `ml/scripts/prepare_data.py` | Builds the face-crop dataset from 4 public sources |
 | `ml/scripts/train_fusion.py` | Benchmarks backbones, model selection, trains the head |
 | `ml/scripts/eval_videos.py` | End-to-end evaluation on whole held-out videos |
+| `ml/scripts/build_similar_index.py` | Builds the closest-known-cases index and reports its kNN accuracy |
 | `ml/scripts/make_figures.py` | ROC, per-dataset and confusion-matrix charts |
 | `tests/` | API and unit tests (stub models, no downloads) |
 

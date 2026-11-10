@@ -1,4 +1,4 @@
-# Model card: DeepShield fusion detector v1.0
+# Model card: DeepShield fusion detector v1.1
 
 Following the structure of [Mitchell et al., "Model Cards for Model Reporting" (2019)](https://arxiv.org/abs/1810.03993).
 
@@ -88,6 +88,27 @@ Accuracy uses the 0.5 threshold. 20% of videos fall in the inconclusive band (40
 60%). Mean processing time was 18 seconds per video on a shared 2-core CPU. Source:
 `reports/video_metrics.json` and the per-video `reports/video_eval.csv`. With 90
 videos these numbers carry wide error bars (roughly plus or minus 0.1 AUC).
+
+## Closest known cases (retrieval, added in v1.1)
+
+Next to the verdict, the app lists the 5 training faces most similar to the upload.
+The index covers the 3,440 training crops; the projection is described in
+[ARCHITECTURE.md](ARCHITECTURE.md). To check that the neighbours carry real signal, a
+plain 5-nearest-neighbour vote was scored on the same held-out test split
+(`reports/similar_index.json`):
+
+| Test faces | 5-NN vote AUC | Fusion head AUC |
+|---|---|---|
+| 140k Faces (StyleGAN) | 0.992 | 0.999 |
+| DeepFakeFace | 0.931 | 0.968 |
+| Google DFD | 0.579 | 0.848 |
+| Celeb-DF v2 | 0.460 | 0.586 |
+| All | 0.810 | 0.920 |
+
+Retrieval is strong for generated and diffusion faces and weak for video face swaps,
+where the nearest faces tend to be the same actors rather than the same kind of
+manipulation. That is why it is shown as supporting evidence and never changes the
+verdict.
 
 ## Limitations and known failure modes
 

@@ -14,8 +14,8 @@ short_description: Detect AI-generated and face-swapped faces in photos and vide
 
 DeepShield checks whether a face in a photo or video is real or AI-manipulated,
 shows **where** the evidence is (Grad-CAM heatmap) and **when** it appears in a
-video (per-frame timeline), and exports a PDF forensic report. The interface works
-in English and Arabic.
+video (per-frame timeline), lists the closest known real and fake faces from its
+training data, and exports a PDF forensic report.
 
 Built by **Moamen Ahmed Fouad** for the DEPI Machine Learning track (2026).
 
@@ -63,6 +63,7 @@ upload ─► face detection (YuNet) ─► square crop with 25% context
        ─► fusion head trained on our data (logistic regression, 1,154 features)
        ─► image: most suspicious face  |  video: 24 frames, mean + top-quartile
        ─► verdict (real / inconclusive / fake) + Grad-CAM + timeline + PDF
+       ─► closest known cases: the 5 most similar labeled training faces
 ```
 
 1. **Five public deepfake detectors** from the Hugging Face Hub were benchmarked.
@@ -74,6 +75,14 @@ upload ─► face detection (YuNet) ─► square crop with 25% context
    averaging.
 4. **No leakage:** identities, actors and source videos never appear in both train
    and test ([details](docs/DATASETS.md)).
+5. **Closest known cases (retrieval):** every face is also compared with a 64-number
+   fingerprint of each of the 3,440 training faces, and the 5 most similar are shown
+   with their label and kind of fake ("5 of 5 are StyleGAN fakes"). Only numbers and
+   labels are stored, never dataset images. This is the retrieval half of RAG; on its
+   own a 5-neighbour vote reaches 0.81 AUC, so it is shown as supporting evidence and
+   the verdict stays with the fusion head.
+
+What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 Architecture diagram and design decisions: [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -110,7 +119,8 @@ curl -F "file=@photo.jpg" http://localhost:7860/api/analyze
   "fake_probability": 0.997,
   "confidence": 0.99,
   "faces": [{"box": {"x": 41, "y": 52, "w": 170, "h": 170}, "fake_probability": 0.997,
-             "model_scores": {"CommunityForensics-DeepfakeDet-ViT": 0.99, "deepfake-detector-model-v1": 0.98}}],
+             "model_scores": {"CommunityForensics-DeepfakeDet-ViT": 0.99, "deepfake-detector-model-v1": 0.98},
+             "similar": [{"label": "fake", "kind": "stylegan", "similarity": 0.89}]}],
   "engine": "fusion-head"
 }
 ```
@@ -129,6 +139,7 @@ pip install -r ml/requirements.txt
 python ml/scripts/prepare_data.py --out data/crops   # stream and crop 4,760 faces
 python ml/scripts/train_fusion.py --data data/crops  # benchmark, select, train, test
 python ml/scripts/eval_videos.py --per-class 30      # whole-video evaluation
+python ml/scripts/build_similar_index.py             # closest-known-cases index
 python ml/scripts/make_figures.py
 ```
 
@@ -169,7 +180,7 @@ training data. Read the [model card](docs/MODEL_CARD.md) before relying on a res
 * Datasets: [140k Real and Fake Faces](https://huggingface.co/datasets/TheKernel01/140k-Real-and-Fake-Faces),
   [DeepFakeFace](https://arxiv.org/abs/2309.02218), [Celeb-DF v2](https://arxiv.org/abs/1909.12962),
   [FaceForensics++ / Google DFD](https://arxiv.org/abs/1901.08971).
-* Fonts: IBM Plex Sans and IBM Plex Sans Arabic (SIL Open Font License).
+* Font: [Archivo](https://github.com/Omnibus-Type/Archivo) by Omnibus-Type (SIL Open Font License).
 
 ## License
 

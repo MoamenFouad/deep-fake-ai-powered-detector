@@ -55,6 +55,7 @@ pip install -r ml/requirements.txt
 python ml/scripts/prepare_data.py --out data/crops          # ~5,000 crops, ~25 min
 python ml/scripts/train_fusion.py --data data/crops          # features + head, ~60 min on CPU
 python ml/scripts/eval_videos.py --per-class 30              # end-to-end video test, ~15 min
+python ml/scripts/build_similar_index.py                     # closest-known-cases index, seconds
 python ml/scripts/make_figures.py
 ```
 
