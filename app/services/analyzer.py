@@ -14,9 +14,27 @@ import numpy as np
 from app.config import Settings
 from app.schemas import AnalysisResult, Box, FaceResult, SimilarCase, TimelinePoint
 from app.services.face_detector import FaceDetector, crop_face
-from app.services.imaging import InvalidMediaError, bgr_to_pil, decode_image, overlay_heatmap, to_png_b64
+from app.services.imaging import InvalidMediaError, bgr_to_pil, decode_image, fit, overlay_heatmap, to_png_b64
 
 log = logging.getLogger(__name__)
+
+# Sampled video frames are kept at most this wide or tall: 24 frames of 4K video would
+# otherwise hold over half a gigabyte. Faces stay far larger than the models need.
+FRAME_MAX_SIDE = 1280
+# Face crops are scaled down to this before scoring; the models resize to 224-440 px anyway.
+CROP_MAX_SIDE = 768
+
+
+def _shrink(frame: np.ndarray) -> np.ndarray:
+    return fit(frame, FRAME_MAX_SIDE)
+
+
+def aggregate_video(probs) -> float:
+    """Whole-video score from per-frame scores: the mean blended with the mean of the most
+    suspicious quarter, since a manipulation can be confined to part of a clip."""
+    p = np.asarray(probs, dtype=float)
+    k = max(1, len(p) // 4)
+    return float(0.5 * p.mean() + 0.5 * np.sort(p)[-k:].mean())
 
 
 class Analyzer:
@@ -46,6 +64,7 @@ class Analyzer:
                 for n in neighbors]
 
     def _face_result(self, crop, score, box) -> FaceResult:
+        crop = fit(crop, 384)  # display size; also keeps the heatmap blur cheap
         heat_png = None
         if score.heatmap is not None:
             heat_png = to_png_b64(overlay_heatmap(crop, score.heatmap))
@@ -60,6 +79,7 @@ class Analyzer:
             model_scores={k: round(v, 4) for k, v in score.model_scores.items()},
             crop_png=to_png_b64(crop),
             heatmap_png=heat_png,
+            explains=getattr(score, "explains", "fake"),
             similar=similar,
             unfamiliar=unfamiliar,
         )
@@ -70,11 +90,24 @@ class Analyzer:
         image = decode_image(data)
         notes: list[str] = []
         faces = self.detector.detect(image)
+        rotated = None
+        if not faces:
+            # The face detector only finds upright faces. A photo saved sideways without
+            # orientation metadata is retried at 90, 180 and 270 degrees.
+            for turn in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE):
+                turned = cv2.rotate(image, turn)
+                faces = self.detector.detect(turned)
+                if faces:
+                    rotated = turned
+                    notes.append("rotated")
+                    break
         if faces:
-            crops = [crop_face(image, f, self.s.face_margin) for f in faces]
-            boxes = [Box(x=f.x, y=f.y, w=f.w, h=f.h) for f in faces]
+            source = image if rotated is None else rotated
+            crops = [fit(crop_face(source, f, self.s.face_margin), CROP_MAX_SIDE) for f in faces]
+            # Boxes are only drawn when they match the uploaded orientation.
+            boxes = [Box(x=f.x, y=f.y, w=f.w, h=f.h) if rotated is None else None for f in faces]
         else:
-            crops, boxes = [image], [None]
+            crops, boxes = [fit(image, CROP_MAX_SIDE)], [None]
             notes.append("no_face")
 
         scores = self.classifier.score([bgr_to_pil(c) for c in crops], explain=True)
@@ -85,7 +118,10 @@ class Analyzer:
         if len(face_results) > 1:
             notes.append("multiple_faces")
         verdict, confidence = self.verdict(p), self.confidence(p)
-        if decisive.unfamiliar:
+        if not faces:
+            # The models were trained on faces only, so a score for a faceless image is not a verdict.
+            verdict, confidence = "uncertain", 0.0
+        elif decisive.unfamiliar:
             verdict, confidence = "uncertain", 0.0
             notes.append("unfamiliar")
 
@@ -93,6 +129,8 @@ class Analyzer:
             id=uuid.uuid4().hex[:12],
             media_type="image",
             filename=filename,
+            width=image.shape[1],
+            height=image.shape[0],
             verdict=verdict,
             fake_probability=round(p, 4),
             confidence=confidence,
@@ -109,6 +147,8 @@ class Analyzer:
         if not cap.isOpened():
             raise InvalidMediaError("The file could not be read as a video.")
         fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        if not 1.0 <= fps <= 240.0:  # broken metadata
+            fps = 25.0
         total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
         frames: list[tuple[int, float, np.ndarray]] = []
 
@@ -119,20 +159,27 @@ class Analyzer:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
                 ok, frame = cap.read()
                 if ok:
-                    frames.append((int(idx), idx / fps, frame))
-        if not frames:  # containers without a reliable frame count: read sequentially
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            all_frames, idx = [], 0
-            while idx < self.s.video_max_seconds * fps:
-                ok, frame = cap.read()
-                if not ok:
+                    frames.append((int(idx), idx / fps, _shrink(frame)))
+        if not frames:
+            # Containers without a reliable frame count or without seeking: count the
+            # frames first (grab() does not decode), then decode only the ones we keep.
+            cap.release()
+            cap = cv2.VideoCapture(path)
+            limit = int(self.s.video_max_seconds * fps)
+            total = 0
+            while total < limit and cap.grab():
+                total += 1
+            cap.release()
+            cap = cv2.VideoCapture(path)
+            picks = set(np.linspace(0, total - 1, min(self.s.video_max_frames, total)).astype(int).tolist()) \
+                if total else set()
+            for idx in range(total):
+                if not cap.grab():
                     break
-                all_frames.append((idx, idx / fps, frame))
-                idx += 1
-            total = len(all_frames)
-            if total:
-                picks = np.linspace(0, total - 1, min(self.s.video_max_frames, total)).astype(int)
-                frames = [all_frames[i] for i in picks]
+                if idx in picks:
+                    ok, frame = cap.retrieve()
+                    if ok:
+                        frames.append((idx, idx / fps, _shrink(frame)))
         cap.release()
         if not frames:
             raise InvalidMediaError("No frames could be decoded from this video.")
@@ -156,46 +203,48 @@ class Analyzer:
             faces = self.detector.detect(frame, max_faces=1)
             timeline.append(TimelinePoint(t=round(t, 2), frame=frame_idx))
             if faces:
-                crops.append(crop_face(frame, faces[0], self.s.face_margin))
+                crops.append(fit(crop_face(frame, faces[0], self.s.face_margin), CROP_MAX_SIDE))
                 owners.append((len(timeline) - 1, Box(x=faces[0].x, y=faces[0].y, w=faces[0].w, h=faces[0].h)))
 
         if not crops:  # no faces anywhere: fall back to whole frames
             notes.append("no_face")
             for i, (_, _, frame) in enumerate(frames):
-                crops.append(frame)
+                crops.append(fit(frame, CROP_MAX_SIDE))
                 owners.append((i, None))
 
-        scores = self.classifier.score([bgr_to_pil(c) for c in crops], explain=False)
+        scores = self.classifier.score([bgr_to_pil(c) for c in crops], explain=False, media="video")
         probs = np.array([s.fake_probability for s in scores])
         for (ti, _), p in zip(owners, probs):
             timeline[ti].fake_probability = round(float(p), 4)
 
-        # Robust aggregate: blend the mean with the mean of the most suspicious quarter,
-        # since manipulations can be confined to part of a clip.
-        k = max(1, len(probs) // 4)
-        p_video = float(0.5 * probs.mean() + 0.5 * np.sort(probs)[-k:].mean())
+        p_video = self.classifier.calibrate_video(aggregate_video(probs))
         if len(crops) < len(frames) and "no_face" not in notes:
             notes.append("partial_faces")
 
         top = int(np.argmax(probs))
-        explained = self.classifier.score([bgr_to_pil(crops[top])], explain=True)[0]
+        explained = self.classifier.score([bgr_to_pil(crops[top])], explain=True, media="video")[0]
         explained.fake_probability = float(probs[top])
         top_face = self._face_result(crops[top], explained, owners[top][1])
         if top_face.unfamiliar:
             notes.append("unfamiliar_frame")
+        verdict, confidence = self.verdict(p_video), self.confidence(p_video)
+        if "no_face" in notes:
+            verdict, confidence = "uncertain", 0.0
 
         return AnalysisResult(
             id=uuid.uuid4().hex[:12],
             media_type="video",
             filename=filename,
-            verdict=self.verdict(p_video),
+            width=frames[0][2].shape[1],
+            height=frames[0][2].shape[0],
+            verdict=verdict,
             fake_probability=round(p_video, 4),
-            confidence=self.confidence(p_video),
+            confidence=confidence,
             faces=[top_face],
             timeline=timeline,
             frames_analyzed=len(frames),
             duration_seconds=round(duration, 2) if duration else None,
             processing_ms=int((time.perf_counter() - t0) * 1000),
-            engine=self.classifier.engine,
+            engine=getattr(self.classifier, "video_engine", self.classifier.engine),
             notes=notes,
         )

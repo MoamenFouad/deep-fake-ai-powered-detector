@@ -68,6 +68,10 @@ async def analyze(file: UploadFile = File(...)) -> AnalysisResult:
     kind = _kind(file)
     if kind is None:
         raise HTTPException(415, "Unsupported file type. Upload JPG, PNG, WEBP, MP4, MOV, AVI, WEBM or MKV.")
+    if not is_loaded():
+        # Loading takes up to a minute after start-up; never block the event loop waiting for it.
+        raise HTTPException(503, "The models are still loading. Try again in a few seconds.",
+                            headers={"Retry-After": "5"})
     limit = settings.max_image_mb if kind == "image" else settings.max_video_mb
     data = await _read_limited(file, limit)
     analyzer = get_analyzer()

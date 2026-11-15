@@ -8,13 +8,44 @@ import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app.services.face_detector import Face  # noqa: E402
+
+
+class OneFaceDetector:
+    """Always reports one face in the middle of the image, so tests never depend on a face model."""
+
+    backend = "test"
+
+    def detect(self, image, max_faces: int = 5):
+        h, w = image.shape[:2]
+        return [Face(x=w // 4, y=h // 4, w=w // 2, h=h // 2, score=0.99)]
+
+
+class NoFaceDetector:
+    backend = "test"
+
+    def detect(self, image, max_faces: int = 5):
+        return []
+
 
 @pytest.fixture(scope="session")
 def client():
+    from app.api.deps import get_analyzer
     from app.main import app
 
     with TestClient(app) as c:
+        get_analyzer().detector = OneFaceDetector()
         yield c
+
+
+@pytest.fixture
+def no_faces(client):
+    from app.api.deps import get_analyzer
+
+    analyzer = get_analyzer()
+    previous, analyzer.detector = analyzer.detector, NoFaceDetector()
+    yield
+    analyzer.detector = previous
 
 
 def _face_like_image(size: int = 320, seed: int = 0) -> np.ndarray:

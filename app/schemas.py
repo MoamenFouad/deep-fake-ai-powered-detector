@@ -28,7 +28,9 @@ class FaceResult(BaseModel):
     verdict: Verdict
     model_scores: dict[str, float] = Field(default_factory=dict, description="Per-backbone fake probability")
     crop_png: str | None = Field(None, description="Base64 PNG of the face crop")
-    heatmap_png: str | None = Field(None, description="Base64 PNG Grad-CAM overlay")
+    heatmap_png: str | None = Field(None, description="Base64 PNG Grad-CAM overlay of the fused score")
+    explains: Literal["fake", "real"] = Field(
+        "fake", description="Which side of the decision the warm areas of the heatmap pushed toward")
     similar: list[SimilarCase] = Field(
         default_factory=list, description="Closest known faces from the training set (labels only, no images)")
     unfamiliar: bool = Field(
@@ -45,6 +47,8 @@ class AnalysisResult(BaseModel):
     id: str
     media_type: Literal["image", "video"]
     filename: str
+    width: int | None = Field(None, description="Width in pixels of the analyzed image or frame; boxes use this scale")
+    height: int | None = None
     verdict: Verdict
     fake_probability: float = Field(..., ge=0, le=1)
     confidence: float = Field(..., ge=0, le=1, description="Distance from the decision boundary, scaled to 0..1")

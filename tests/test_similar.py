@@ -9,8 +9,8 @@ import pytest
 from app.config import settings
 from app.services.analyzer import Analyzer
 from app.services.classifier import FaceScore
-from app.services.face_detector import FaceDetector
 from app.services.similar import SimilarIndex, load_index
+from tests.conftest import OneFaceDetector
 
 DIM = 6
 
@@ -62,15 +62,18 @@ class _FeatureStub:
     engine = "stub"
     names = ["a", "b"]
 
-    def score(self, crops, explain=True):
+    def score(self, crops, explain=True, media="image"):
         feats = np.zeros(DIM)
         feats[0] = 1.0
         return [FaceScore(0.9, {"a": 0.9, "b": 0.8}, None, feats) for _ in crops]
 
+    def calibrate_video(self, p):
+        return p
+
 
 def test_analyzer_attaches_similar_cases(index_path):
     path, _ = index_path
-    analyzer = Analyzer(replace(settings, similar_k=4), FaceDetector(settings.face_model_path), _FeatureStub(),
+    analyzer = Analyzer(replace(settings, similar_k=4), OneFaceDetector(), _FeatureStub(),
                         SimilarIndex(path))
     ok, png = cv2.imencode(".png", np.full((64, 64, 3), 128, np.uint8))
     result = analyzer.analyze_image(png.tobytes(), "x.png")
@@ -81,7 +84,7 @@ def test_analyzer_attaches_similar_cases(index_path):
 
 
 def test_no_index_means_no_similar_cases():
-    analyzer = Analyzer(settings, FaceDetector(settings.face_model_path), _FeatureStub(), None)
+    analyzer = Analyzer(settings, OneFaceDetector(), _FeatureStub(), None)
     ok, png = cv2.imencode(".png", np.full((64, 64, 3), 128, np.uint8))
     assert analyzer.analyze_image(png.tobytes(), "x.png").faces[0].similar == []
 
@@ -96,7 +99,7 @@ def test_unfamiliar_face_is_inconclusive(index_path, tmp_path, threshold, unfami
     _, vectors = index_path
     path = tmp_path / "guard.npz"
     _write_index(path, vectors, threshold)
-    analyzer = Analyzer(settings, FaceDetector(settings.face_model_path), _FeatureStub(), SimilarIndex(path))
+    analyzer = Analyzer(settings, OneFaceDetector(), _FeatureStub(), SimilarIndex(path))
     result = analyzer.analyze_image(_png(), "x.png")
     face = result.faces[0]
     assert face.unfamiliar is unfamiliar

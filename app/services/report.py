@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import io
 from datetime import UTC, datetime
+from xml.sax.saxutils import escape
 
 from reportlab.graphics.charts.lineplots import LinePlot
 from reportlab.graphics.shapes import Drawing, Line, String
@@ -16,7 +17,7 @@ from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Tabl
 
 from app.schemas import AnalysisResult
 
-VERDICT_COLORS = {"fake": "#d6453d", "real": "#1f9d6b", "uncertain": "#d9930d"}
+VERDICT_COLORS = {"fake": "#e0261b", "real": "#0f8a4a", "uncertain": "#c27400"}
 VERDICT_TEXT = {
     "fake": "LIKELY MANIPULATED",
     "real": "LIKELY AUTHENTIC",
@@ -25,6 +26,7 @@ VERDICT_TEXT = {
 NOTE_TEXT = {
     "no_face": "No face was detected, so the whole frame was analyzed. Accuracy is lower in this mode.",
     "multiple_faces": "Several faces were found. The overall score is the highest face score.",
+    "rotated": "The photo was sideways, so it was turned upright to find the face.",
     "partial_faces": "A face was found in only some frames; frames without a face are skipped.",
     "unfamiliar": "This face is unlike the faces the model was trained on (for example unusual lighting, "
                   "heavy editing or a newer AI generator), so the result is reported as inconclusive.",
@@ -37,6 +39,9 @@ KIND_TEXT = {
     "ffhq": "FFHQ photo", "stylegan": "StyleGAN face", "imdb_wiki": "celebrity photo",
     "sd_text2img": "Stable Diffusion image", "sd_inpainting": "diffusion edit", "insightface": "InsightFace swap",
     "celebdf_real": "Celeb-DF real", "celebdf_swap": "Celeb-DF swap", "dfd_real": "DFD real", "dfd_swap": "DFD swap",
+    "flux_dev": "FLUX.1 face", "flux_pro": "FLUX.1 pro face", "sdxl": "SDXL face", "t2i": "text-to-image face",
+    "faceswap": "face swap", "celeba": "celebrity photo", "celebahq": "celebrity photo", "coco": "everyday photo",
+    "flickr": "everyday photo", "pexels": "stock photo",
 }
 
 
@@ -58,7 +63,7 @@ def _timeline_chart(result: AnalysisResult) -> Drawing | None:
     lp = LinePlot()
     lp.x, lp.y, lp.width, lp.height = 12 * mm, 10 * mm, 150 * mm, 42 * mm
     lp.data = [pts]
-    lp.lines[0].strokeColor = colors.HexColor("#3b5bdb")
+    lp.lines[0].strokeColor = colors.HexColor("#0d0d0d")
     lp.lines[0].strokeWidth = 1.6
     lp.yValueAxis.valueMin, lp.yValueAxis.valueMax, lp.yValueAxis.valueStep = 0, 1, 0.25
     lp.xValueAxis.labelTextFormat = "%.0fs"
@@ -84,7 +89,7 @@ def build_pdf(result: AnalysisResult) -> bytes:
         Paragraph("DeepShield Forensic Report", h1),
         Paragraph(
             f"Report ID {result.id} &nbsp;|&nbsp; {datetime.now(UTC):%Y-%m-%d %H:%M UTC}"
-            f" &nbsp;|&nbsp; File: {result.filename}", small),
+            f" &nbsp;|&nbsp; File: {escape(result.filename[:80])}", small),
         Spacer(1, 8 * mm),
         Paragraph(VERDICT_TEXT[result.verdict], big),
         Paragraph(
@@ -120,7 +125,7 @@ def build_pdf(result: AnalysisResult) -> bytes:
         scores = Table(rows, colWidths=[90 * mm, 40 * mm])
         scores.setStyle(TableStyle([
             ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f3f5")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ffd400")),
             ("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor("#dddddd")),
         ]))
         story += [imgs, Spacer(1, 2 * mm), scores, Spacer(1, 2 * mm)]
