@@ -60,7 +60,8 @@ def main() -> None:
     args = ap.parse_args()
 
     s = Settings()
-    analyzer = Analyzer(s, FaceDetector(s.face_model_path), DeepfakeClassifier(s.model_ids, s.head_path))
+    classifier = DeepfakeClassifier(s.model_ids, s.head_path, s.video_head_path)
+    analyzer = Analyzer(s, FaceDetector(s.face_model_path), classifier)
     print("Engine:", analyzer.classifier.engine)
     rows = []
     for i, (file, lab, src) in enumerate(pick_videos(args.per_class, args.seed)):
