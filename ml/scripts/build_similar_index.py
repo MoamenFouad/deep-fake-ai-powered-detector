@@ -43,30 +43,6 @@ sys.path.insert(0, str(ROOT))
 from app.services.classifier import FusionHead, build_features  # noqa: E402
 from ml.scripts.train_fusion import metrics  # noqa: E402
 
-KINDS = [
-    "ffhq", "stylegan",
-    "imdb_wiki", "sd_text2img", "sd_inpainting", "insightface",
-    "celebdf_real", "celebdf_swap",
-    "dfd_real", "dfd_swap",
-]
-
-
-def kind_of(row: pd.Series) -> str:
-    fake = int(row.label) == 1
-    if row.source == "ffhq_stylegan":
-        return "stylegan" if fake else "ffhq"
-    if row.source == "dff":
-        if not fake:
-            return "imdb_wiki"
-        name = Path(row.path).name
-        for prefix, kind in (("text2img", "sd_text2img"), ("inpainting", "sd_inpainting"), ("insight", "insightface")):
-            if name.startswith(prefix):
-                return kind
-        return "sd_text2img"
-    if row.source == "celebdf":
-        return "celebdf_swap" if fake else "celebdf_real"
-    return "dfd_swap" if fake else "dfd_real"
-
 
 def load_cache(short: str, paths: pd.Series, cache_dir: Path) -> tuple[np.ndarray, np.ndarray]:
     z = np.load(cache_dir / f"{short}.npz", allow_pickle=True)
@@ -97,54 +73,59 @@ def main() -> None:
     probs, embs = zip(*(load_cache(s, df["path"], ROOT / "data" / "features") for s in shorts))
     feats = build_features(list(embs), list(probs))
 
-    train = (df.split == "train").to_numpy()
-    test = ~train
+    if "aug" not in df:
+        df["aug"] = 0
+    # The index holds the original training faces only; augmented copies would be near-duplicates.
+    train = ((df.split == "train") & (df.aug == 0)).to_numpy()
+    held = (df.split != "train").to_numpy()
     zt = (feats[train] - head.mean) / head.std * np.abs(head.coef)
     mean = zt.mean(0)
     _, _, vt = np.linalg.svd(zt - mean, full_matrices=False)
     comps = vt[: args.dims].astype(np.float32)
 
     vec_train = project(feats[train], head, mean, comps)
-    vec_test = project(feats[test], head, mean, comps)
+    vec_held = project(feats[held], head, mean, comps)
     y_train = df.label.to_numpy()[train]
-    y_test = df.label.to_numpy()[test]
+    y_held = df.label.to_numpy()[held]
+    held_df = df[held].reset_index(drop=True)
 
-    sims = vec_test @ vec_train.T
+    sims = vec_held @ vec_train.T
     top = np.argsort(-sims, axis=1)[:, : args.k]
     knn_p = y_train[top].mean(1)
-    test_df = df[test].reset_index(drop=True)
-    report = {"k": args.k, "dims": args.dims, "train_size": int(train.sum()),
-              "overall": metrics(y_test, knn_p)}
-    for src, sub in test_df.groupby("source"):
-        report[src] = metrics(sub.label.to_numpy(), knn_p[sub.index.to_numpy()])
-    agree = float(((knn_p >= 0.5) == (y_test == 1)).mean())
-    report["majority_vote_accuracy"] = round(agree, 4)
+    report = {"k": args.k, "dims": args.dims, "train_size": int(train.sum())}
+    for split in ("test", "unseen"):
+        m = (held_df.split == split).to_numpy()
+        if m.any():
+            report[split] = metrics(y_held[m], knn_p[m])
 
     # Unfamiliar-image threshold, from training faces only (leave-group-out).
-    groups = df.group.astype(str).to_numpy()[train]
+    groups = (df.source.astype(str) + ":" + df.group.astype(str)).to_numpy()[train]
     train_sims = vec_train @ vec_train.T
     train_sims[groups[:, None] == groups[None, :]] = -1.0
     threshold = float(np.percentile(train_sims.max(1), args.unfamiliar_pct))
     flagged = sims.max(1) < threshold
-    fused = head.predict(feats[test]) >= 0.5
-    correct = fused == (y_test == 1)
-    report["unfamiliar"] = {
-        "threshold": round(threshold, 4),
-        "train_percentile": args.unfamiliar_pct,
-        "test_flagged": int(flagged.sum()),
-        "test_flagged_share": round(float(flagged.mean()), 4),
-        "accuracy_flagged": round(float(correct[flagged].mean()), 4) if flagged.any() else None,
-        "accuracy_rest": round(float(correct[~flagged].mean()), 4),
-    }
+    correct = (head.predict(feats[held]) >= 0.5) == (y_held == 1)
+    report["unfamiliar"] = {"threshold": round(threshold, 4), "train_percentile": args.unfamiliar_pct}
+    for split in ("test", "unseen"):
+        m = (held_df.split == split).to_numpy()
+        if m.any():
+            f = flagged & m
+            report["unfamiliar"][split] = {
+                "flagged": int(f.sum()),
+                "flagged_share": round(float(f.sum() / m.sum()), 4),
+                "accuracy_flagged": round(float(correct[f].mean()), 4) if f.any() else None,
+                "accuracy_rest": round(float(correct[m & ~flagged].mean()), 4),
+            }
     print(json.dumps(report, indent=1))
 
-    kinds = np.array([KINDS.index(kind_of(r)) for _, r in df[train].iterrows()], dtype=np.int8)
+    kind_names = sorted(df.kind[train].astype(str).unique())
+    kinds = df.kind[train].astype(str).map({k: i for i, k in enumerate(kind_names)}).to_numpy().astype(np.int8)
     np.savez_compressed(
         ROOT / args.out,
         shift=head.mean.astype(np.float32), scale=(np.abs(head.coef) / head.std).astype(np.float32),
         mean=mean.astype(np.float32), components=comps,
         vectors=vec_train.astype(np.float16), labels=y_train.astype(np.int8),
-        kinds=kinds, kind_names=np.array(KINDS), model_ids=np.array(head.model_ids),
+        kinds=kinds, kind_names=np.array(kind_names), model_ids=np.array(head.model_ids),
         unfamiliar_threshold=np.float32(threshold),
     )
     (ROOT / "reports" / "similar_index.json").write_text(json.dumps(report, indent=2))
