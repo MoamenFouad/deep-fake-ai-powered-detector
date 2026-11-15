@@ -33,8 +33,8 @@
       <div class="hero-foot">
         <p class="lede">Drop a photo or a short video. DeepShield finds every face, checks it with two AI detectors and a model we trained, then shows you the evidence.</p>
         <dl class="proof">
-          <div><dt>0.920</dt><dd>AUC on 1,320 faces it never saw</dd></div>
-          <div><dt>4</dt><dd>public deepfake datasets</dd></div>
+          <div><dt>0.965</dt><dd>AUC on 2,385 held-out faces</dd></div>
+          <div><dt>20</dt><dd>public sources, from StyleGAN to FLUX and Midjourney</dd></div>
           <div><dt>2&nbsp;s</dt><dd>per photo, on a plain CPU</dd></div>
         </dl>
       </div>
@@ -63,9 +63,15 @@
         </div>
 
         <div class="samples">
-          <p>No file handy?</p>
-          <button class="sample" type="button" data-sample="/static/samples/real.jpg"><img src="/static/samples/real.jpg" alt="" width="40" height="40"><span>Try a real photo</span></button>
-          <button class="sample" type="button" data-sample="/static/samples/fake.jpg"><img src="/static/samples/fake.jpg" alt="" width="40" height="40"><span>Try an AI face</span></button>
+          <p><b>No file handy?</b> Three of these are real photos and three are AI. Pick one and see.</p>
+          <div class="sample-grid">
+            <button class="sample" type="button" data-sample="/static/samples/sample-1.jpg" data-truth="fake" data-origin="Generated with FLUX.1" aria-label="Check sample photo 1"><img src="/static/samples/sample-1-thumb.jpg" alt="" width="96" height="96" loading="lazy"></button>
+            <button class="sample" type="button" data-sample="/static/samples/sample-2.jpg" data-truth="real" data-origin="Stock photo from Pexels" aria-label="Check sample photo 2"><img src="/static/samples/sample-2-thumb.jpg" alt="" width="96" height="96" loading="lazy"></button>
+            <button class="sample" type="button" data-sample="/static/samples/sample-3.jpg" data-truth="real" data-origin="Stock photo from Pexels" aria-label="Check sample photo 3"><img src="/static/samples/sample-3-thumb.jpg" alt="" width="96" height="96" loading="lazy"></button>
+            <button class="sample" type="button" data-sample="/static/samples/sample-4.jpg" data-truth="fake" data-origin="Generated with Midjourney" aria-label="Check sample photo 4"><img src="/static/samples/sample-4-thumb.jpg" alt="" width="96" height="96" loading="lazy"></button>
+            <button class="sample" type="button" data-sample="/static/samples/sample-5.jpg" data-truth="real" data-origin="Stock photo from Pexels" aria-label="Check sample photo 5"><img src="/static/samples/sample-5-thumb.jpg" alt="" width="96" height="96" loading="lazy"></button>
+            <button class="sample" type="button" data-sample="/static/samples/sample-6.jpg" data-truth="fake" data-origin="Generated with Stable Diffusion XL" aria-label="Check sample photo 6"><img src="/static/samples/sample-6-thumb.jpg" alt="" width="96" height="96" loading="lazy"></button>
+          </div>
         </div>
 
         <div class="recent" id="recent" hidden>
@@ -94,14 +100,14 @@
       <ol class="steps">
         <li><span class="step-n">1</span><h3>Find the faces</h3><p>A small face detector (YuNet) finds every face. Videos are sampled at up to 24 frames.</p></li>
         <li><span class="step-n">2</span><h3>Two detectors look</h3><p>Two pretrained models, a ViT and a SigLIP, each trained on different kinds of fakes, inspect every face.</p></li>
-        <li><span class="step-n">3</span><h3>Fuse the evidence</h3><p>A fusion layer we trained on four public deepfake datasets turns both views into one probability.</p></li>
+        <li><span class="step-n">3</span><h3>Fuse the evidence</h3><p>A fusion layer we trained on 8,075 faces from 13 public sources turns both views into one calibrated probability. Videos use a second layer trained on video frames.</p></li>
         <li><span class="step-n">4</span><h3>Explain it</h3><p>Grad-CAM shows where the evidence is, and retrieval finds the closest known real and fake faces.</p></li>
       </ol>
     </section>
 
     <section class="block" id="accuracy" aria-labelledby="accTitle">
       <h2 id="accTitle">Measured on faces it never saw</h2>
-      <p class="block-lede">Test faces come from people and videos kept out of training. AUC measures how well fakes are ranked above real faces: 1.0 is perfect, 0.5 is a coin flip.</p>
+      <p class="block-lede">Test faces come from people, videos and files kept out of training, and seven sources were never trained on at all. AUC measures how well fakes are ranked above real faces: 1.0 is perfect, 0.5 is a coin flip.</p>
       <div class="acc">
         <div class="acc-total" id="accHero"></div>
         <div class="acc-chart" id="accBars"><p class="muted">Loading results</p></div>
@@ -112,7 +118,7 @@
       <h2 id="limTitle">Know the limits</h2>
       <ul>
         <li><h3>A probability, not proof</h3><p>Use it alongside other checks, such as where the file came from.</p></li>
-        <li><h3>Quality matters</h3><p>Heavy compression, tiny faces and brand-new generators lower accuracy.</p></li>
+        <li><h3>Quality matters</h3><p>Tiny or blurry faces, heavy compression and talking-head avatars lower accuracy. Expect "inconclusive" more often there.</p></li>
         <li><h3>Faces only</h3><p>A real face placed into a fake scene still reads as real.</p></li>
       </ul>
     </section>
@@ -131,12 +137,15 @@
 
   <template id="faceTpl">
     <article class="face">
+      <div class="wipe-col">
       <div class="wipe" style="--pos:50%">
         <img class="wipe-a" alt="">
         <img class="wipe-b" alt="">
         <input class="wipe-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare the original face with the evidence map">
         <span class="wipe-handle" aria-hidden="true"></span>
         <span class="tag sm wipe-n">2</span><span class="wipe-tag a">Original</span><span class="wipe-tag b">Evidence map</span>
+      </div>
+      <p class="note wipe-note"></p>
       </div>
       <div class="face-info">
         <div class="face-head"><p class="face-title"></p><p class="face-score"></p></div>

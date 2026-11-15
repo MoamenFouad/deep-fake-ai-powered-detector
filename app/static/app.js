@@ -14,8 +14,8 @@
   const VERDICT = { fake: "Likely manipulated", real: "Likely authentic", uncertain: "Inconclusive" };
   const KICKER = { fake: "Manipulation detected", real: "No manipulation found", uncertain: "Too close to call" };
   const NOTES = {
-    no_face: "No face was found, so the whole image was checked. Results are less reliable this way.",
     multiple_faces: "Several faces were found. The verdict follows the most suspicious face.",
+    rotated: "The photo was sideways, so it was turned upright to find the face.",
     partial_faces: "A face was visible in only some frames. Frames without a face were skipped.",
     unfamiliar_frame: "The most suspicious frame looks unlike anything DeepShield was trained on. Treat this result with extra care.",
   };
@@ -23,10 +23,13 @@
     ffhq: "FFHQ photo", stylegan: "StyleGAN face", imdb_wiki: "Celebrity photo",
     sd_text2img: "Stable Diffusion image", sd_inpainting: "Diffusion edit", insightface: "InsightFace swap",
     celebdf_real: "Celeb-DF real", celebdf_swap: "Celeb-DF swap", dfd_real: "DFD real", dfd_swap: "DFD swap",
+    flux_dev: "FLUX.1 face", flux_pro: "FLUX.1 pro face", sdxl: "SDXL face", t2i: "Text-to-image face",
+    faceswap: "Face swap", celeba: "Celebrity photo", celebahq: "Celebrity photo", coco: "Everyday photo",
+    flickr: "Everyday photo", pexels: "Stock photo",
   };
-  const ENGINE = { "fusion-head": "Fusion head", "ensemble-mean": "Two-model average", stub: "Test stub" };
+  const ENGINE = { "fusion-head": "Fusion head", "video-head": "Video head", "ensemble-mean": "Two-model average", stub: "Test stub" };
 
-  const state = { file: null, kind: null, url: null, result: null, busy: false, history: [], current: null };
+  const state = { file: null, kind: null, url: null, result: null, busy: false, history: [], current: null, sample: null };
 
   const pct = (p, d = 1) => new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: d }).format(p);
   const num = (n, d = 1) => new Intl.NumberFormat("en-US", { maximumFractionDigits: d }).format(n);
@@ -111,7 +114,7 @@
     if (state.url && !state.history.some((h) => h.url === state.url)) URL.revokeObjectURL(state.url);
   }
 
-  function choose(file) {
+  function choose(file, sample = null) {
     if (!file || state.busy) return;
     const kind = kindOf(file);
     if (!kind) return setStatus("This file type is not supported. Use JPG, PNG, WEBP, MP4, MOV, WEBM or AVI.", true);
@@ -120,7 +123,7 @@
     }
     clearResult();
     releaseCurrentUrl();
-    Object.assign(state, { file, kind, url: URL.createObjectURL(file), current: null });
+    Object.assign(state, { file, kind, url: URL.createObjectURL(file), current: null, sample });
     showMedia(kind, state.url);
     analyze();
   }
@@ -169,7 +172,9 @@
       const res = await fetch(btn.dataset.sample);
       if (!res.ok) throw new Error(res.statusText);
       const blob = await res.blob();
-      choose(new File([blob], btn.dataset.sample.split("/").pop(), { type: blob.type || "image/jpeg" }));
+      // The samples are unlabeled on purpose; the answer is shown next to the verdict.
+      choose(new File([blob], btn.dataset.sample.split("/").pop(), { type: blob.type || "image/jpeg" }),
+        { truth: btn.dataset.truth, origin: btn.dataset.origin });
     } catch { setStatus("The server could not be reached. Check your connection and try again.", true); }
   }));
 
@@ -201,17 +206,21 @@
     drop.classList.add("busy");
     $("#scanLabel").textContent = state.kind === "video" ? "Scanning 24 frames" : "Scanning";
     setStatus(state.kind === "video" ? "Checking the video. This can take up to a minute." : "Checking the photo. This takes a few seconds.");
-    const body = new FormData();
-    body.append("file", state.file, state.file.name);
+    const file = state.file;
     try {
-      const res = await fetch("/api/analyze", { method: "POST", body });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 503) {
-        setStatus("The models are still warming up. Trying again in a moment.");
-        setTimeout(analyze, 4000);
-        return;
+      let res, data;
+      for (let attempt = 0; ; attempt++) {
+        const body = new FormData();
+        body.append("file", file, file.name);
+        res = await fetch("/api/analyze", { method: "POST", body });
+        data = await res.json().catch(() => ({}));
+        // 503 = the models are still loading after a restart. Keep waiting, up to about two minutes.
+        if (res.status !== 503 || attempt >= 30) break;
+        setStatus("The models are still warming up. This takes up to a minute after a restart.");
+        await new Promise((resolve) => setTimeout(resolve, 4000));
       }
       if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : res.statusText);
+      data.sample = state.sample;
       state.result = data;
       addHistory(data);
       renderResult(data);
@@ -285,7 +294,10 @@
     body.replaceChildren();
 
     const unfamiliar = r.notes.includes("unfamiliar");
-    const sub = unfamiliar
+    const noFace = r.notes.includes("no_face");
+    const sub = noFace
+      ? `DeepShield judges faces, and it found none in this ${r.media_type === "video" ? "video" : "image"}. The score above comes from the whole frame and is not a verdict.`
+      : unfamiliar
       ? "This face is unlike the faces DeepShield was trained on (unusual lighting, heavy editing or a newer AI generator), so the score above is not trusted. Check the source of the file."
       : r.verdict === "uncertain"
         ? "The evidence sits between 40% and 60%, so DeepShield will not guess. Check the source of the file."
@@ -293,7 +305,7 @@
     body.append(el("section", { class: "verdict", "data-v": r.verdict, "aria-label": VERDICT[r.verdict] },
       el("div", { class: "verdict-row" },
         el("div", {},
-          el("p", { class: "verdict-kicker" }, tag(1), unfamiliar ? "Unfamiliar image" : KICKER[r.verdict]),
+          el("p", { class: "verdict-kicker" }, tag(1), noFace ? "No face found" : unfamiliar ? "Unfamiliar image" : KICKER[r.verdict]),
           el("h2", { class: "verdict-word" }, VERDICT[r.verdict])),
         el("p", { class: "verdict-num" }, el("b", {}, pct(r.fake_probability)), el("span", {}, "manipulation probability"))),
       el("div", { role: "img", "aria-label": `${pct(r.fake_probability)} manipulation probability on a scale from real to fake` },
@@ -308,6 +320,14 @@
       : [["Faces", num(r.notes.includes("no_face") ? 0 : r.faces.length, 0)]];
     facts.push(["Time", `${num(r.processing_ms / 1000)} s`], ["Engine", ENGINE[r.engine] || r.engine]);
     body.append(el("dl", { class: "facts" }, facts.map(([k, v]) => el("div", {}, el("dt", {}, k), el("dd", {}, v)))));
+
+    if (r.sample) {
+      const right = r.verdict === r.sample.truth;
+      const answer = r.sample.truth === "fake" ? "AI-generated" : "a real photo";
+      body.append(el("p", { class: `truth ${right ? "right" : r.verdict === "uncertain" ? "" : "wrong"}` },
+        el("b", {}, `Answer: this sample is ${answer}.`), ` ${r.sample.origin}. `,
+        right ? "DeepShield got it right." : r.verdict === "uncertain" ? "DeepShield was not sure." : "DeepShield got this one wrong."));
+    }
 
     if (r.media_type === "video" && r.timeline.length) body.append(renderTimeline(r));
 
@@ -345,7 +365,10 @@
     const range = $(".wipe-range", node);
     range.addEventListener("input", () => wipe.style.setProperty("--pos", `${range.value}%`));
 
-    $(".face-title", node).textContent = r.media_type === "video" ? "Most suspicious frame" : (f.box ? `Face ${i + 1}` : "Whole image");
+    $(".face-title", node).textContent = r.media_type === "video" ? "Most suspicious frame" : (f.box || r.notes.includes("rotated") ? `Face ${i + 1}` : "Whole image");
+    $(".wipe-note", node).textContent = f.heatmap_png
+      ? `Warm areas pushed the score toward ${f.explains === "real" ? "authentic" : "manipulated"}.`
+      : "";
     const score = $(".face-score", node);
     score.textContent = pct(f.fake_probability);
     score.style.color = tone(f.verdict);
@@ -398,14 +421,18 @@
     return node;
   }
 
+  let placeBoxes = null;
+  window.addEventListener("resize", () => { if (placeBoxes) placeBoxes(); }, { passive: true });
+
   function drawBoxes(r) {
     const img = $("#stage img");
     if (!img) return;
     const place = () => {
       $$(".box").forEach((b) => b.remove());
       if (state.result !== r) return;
-      const sx = img.clientWidth / img.naturalWidth;
-      const sy = img.clientHeight / img.naturalHeight;
+      // Boxes are in the pixels of the image the server analyzed (very large photos are scaled down first).
+      const sx = img.clientWidth / (r.width || img.naturalWidth);
+      const sy = img.clientHeight / (r.height || img.naturalHeight);
       r.faces.forEach((f, i) => {
         if (!f.box) return;
         $("#stage").append(el("div", {
@@ -414,8 +441,8 @@
         }, el("span", { class: "box-label" }, tag(i + 1), el("b", {}, pct(f.fake_probability)))));
       });
     };
+    placeBoxes = place;
     if (img.complete && img.naturalWidth) place(); else img.addEventListener("load", place, { once: true });
-    window.addEventListener("resize", place, { passive: true });
   }
 
   function renderTimeline(r) {
@@ -480,47 +507,82 @@
   }
 
   // ------------------------------------------------------------------ accuracy section
-  const DATASETS = {
-    ffhq_stylegan: ["140k Real and Fake Faces", "Generated faces (StyleGAN)"],
-    dff: ["DeepFakeFace", "Diffusion images and swaps"],
-    celebdf: ["Celeb-DF v2", "Celebrity face-swap videos"],
-    dfd: ["Google DFD", "Actor face-swap videos"],
-  };
+  // Held-out sources, grouped by what they test. [metrics key, name, what it is]
+  const GROUPS = [
+    ["AI-generated faces", "test_all", [
+      ["ffhq_stylegan", "StyleGAN", "generated faces vs FFHQ photos"],
+      ["dff", "Stable Diffusion, InsightFace", "generated and swapped vs celebrity photos"],
+      ["flux_faces", "FLUX.1", "generated faces"],
+      ["sdxl_faces", "Stable Diffusion XL", "generated faces"],
+      ["sfhq_t2i", "FLUX.1 and SDXL portraits", "1024 px studio-style portraits"],
+    ]],
+    ["Face swaps", "test_all", [
+      ["celebdf", "Celeb-DF v2", "celebrity face-swap videos"],
+      ["dfd", "Google DFD", "actor face-swap videos"],
+      ["faceswap", "CelebA swaps", "swapped celebrity photos"],
+    ]],
+    ["Real photos", "test_all", [
+      ["pexels", "Stock photos", "professional lighting and colour"],
+      ["coco", "Everyday photos (COCO)", "faces in ordinary scenes"],
+      ["flickr", "Everyday photos (Flickr)", "faces in ordinary scenes"],
+      ["celebahq", "Celebrity photos, high quality", "CelebA-HQ"],
+      ["celeba", "Celebrity photos, low resolution", "CelebA"],
+    ]],
+    ["Never seen in training", "unseen", [
+      ["midjourney", "Midjourney", "generated faces"],
+      ["stylegan3", "StyleGAN3", "generated faces"],
+      ["collabdiff", "Collaborative Diffusion", "generated faces"],
+      ["wfir", "whichfaceisreal.com", "StyleGAN faces vs photos"],
+      ["heygen", "HeyGen avatars", "talking-head video frames"],
+      ["youtube", "Real video clips", "frames from real talking-head clips"],
+      ["lfw", "Press photos (LFW)", "small, old news photos"],
+    ]],
+  ];
 
   function renderMetrics(m) {
     const total = $("#accHero");
     const chart = $("#accBars");
     total.replaceChildren();
     chart.replaceChildren();
-    if (!m || !m.test || !m.test.fusion_head) {
+    if (!m || !m.test_all || !m.test_all.fusion_head) {
       total.hidden = true;
       chart.append(el("p", { class: "muted" }, "Results are not available yet."));
       return;
     }
     total.hidden = false;
-    const fusion = m.test.fusion_head;
-    const o = fusion.overall;
+    const o = m.test_all.fusion_head.overall;
+    const u = m.unseen.fusion_head.overall;
     total.append(
-      el("div", {}, el("b", {}, fixed(o.auc)), el("p", {}, `test AUC on ${num(o.n, 0)} faces the model never saw`)),
+      el("div", {}, el("b", {}, fixed(o.auc)), el("p", {}, `AUC on ${num(o.n, 0)} held-out faces from the kinds of data it trained on`)),
+      el("div", {}, el("b", {}, fixed(u.auc)), el("p", {}, `AUC on ${num(u.n, 0)} faces from sources it never trained on`)),
       el("dl", {},
         el("div", {}, el("dt", {}, "Accuracy"), el("dd", {}, pct(o.accuracy))),
+        el("div", {}, el("dt", {}, "Unseen accuracy"), el("dd", {}, pct(u.accuracy))),
         el("div", {}, el("dt", {}, "Precision"), el("dd", {}, pct(o.precision))),
-        el("div", {}, el("dt", {}, "Recall"), el("dd", {}, pct(o.recall))),
-        el("div", {}, el("dt", {}, "F1"), el("dd", {}, fixed(o.f1, 2)))));
+        el("div", {}, el("dt", {}, "Recall"), el("dd", {}, pct(o.recall)))));
 
-    const singles = Object.entries(m.test).filter(([k]) => k.startsWith("zero_shot:"));
-    const bestSingle = (src) => Math.max(...singles.map(([, v]) => (v[src] && Number.isFinite(v[src].auc) ? v[src].auc : 0)));
     chart.append(el("div", { class: "acc-legend" },
-      el("span", {}, el("i", { style: "background:var(--ink)" }), "DeepShield"),
-      el("span", {}, el("i", { style: "background:#c3c4c7" }), "Best single public model")));
-    const bar = (cls, v) => el("div", { class: `acc-bar ${cls}` },
-      el("span", { class: "track" }, el("i", { style: `--v:${Math.max(0.5, v)}` })), el("b", {}, fixed(v)));
-    Object.keys(DATASETS).filter((src) => fusion[src]).forEach((src) => {
-      chart.append(el("div", { class: "acc-row" },
-        el("p", { class: "acc-name" }, el("b", {}, DATASETS[src][0]), el("span", {}, DATASETS[src][1])),
-        el("div", { class: "acc-bars" }, bar("ours", fusion[src].auc), bar("base", bestSingle(src)))));
+      el("span", {}, el("i", { style: "background:var(--ink)" }), "DeepShield: share of faces judged correctly"),
+      el("span", {}, el("i", { class: "tick" }), "Best single public detector")));
+    GROUPS.forEach(([title, split, rows]) => {
+      const ours = m[split].fusion_head;
+      const singles = Object.entries(m[split]).filter(([k]) => k.startsWith("zero_shot:")).map(([, v]) => v);
+      const present = rows.filter(([src]) => ours[src]);
+      if (!present.length) return;
+      chart.append(el("div", { class: "acc-group" },
+        el("h3", {}, title),
+        present.map(([src, name, what]) => {
+          const acc = ours[src].accuracy;
+          const base = Math.max(...singles.map((v) => (v[src] ? v[src].accuracy : 0)));
+          return el("div", { class: `acc-line${acc < 0.7 ? " weak" : ""}` },
+            el("p", { class: "acc-name" }, el("b", {}, name), el("span", {}, what)),
+            el("span", { class: "track", role: "img", "aria-label": `${pct(acc, 0)} correct; best single public detector ${pct(base, 0)}` },
+              el("i", { style: `--v:${acc}` }), el("u", { style: `--v:${base}` })),
+            el("b", { class: "acc-val" }, pct(acc, 0)));
+        })));
     });
-    chart.append(el("p", { class: "acc-note" }, "Bars start at 0.5, the coin-flip level."));
+    chart.append(el("p", { class: "acc-note" },
+      "A face counts as correct when its probability falls on the right side of 50%. Low-resolution photos, hard video face swaps and talking-head avatars are the weak spots; there the app usually answers \"inconclusive\"."));
   }
 
   fetch("/api/metrics").then((res) => (res.ok ? res.json() : null))
