@@ -1,4 +1,4 @@
-# DeepShield: production image for Hugging Face Spaces (Docker SDK) or any container host.
+# DeepShield: production image for any container host (Azure Container Apps, Cloud Run, Render, a VM).
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Hugging Face Spaces runs containers as uid 1000.
+# Run as a normal user, not root.
 RUN useradd -m -u 1000 user
 WORKDIR /home/user/app
 
@@ -25,5 +25,6 @@ COPY --chown=user . .
 RUN python -m app.download_models
 
 EXPOSE 7860
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:7860/api/health')"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s CMD python -c "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:%s/api/health' % os.getenv('PORT','7860'))"
+# Most hosts pass the port to listen on in $PORT; default to 7860.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]

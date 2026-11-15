@@ -1,0 +1,38 @@
+name: Docker image
+
+# Builds the app image and publishes it to the GitHub Container Registry, so any
+# host can run it with:  docker run -p 7860:7860 ghcr.io/moamenfouad/deep-fake-ai-powered-detector
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "models/**"
+      - "reports/metrics.json"
+      - "requirements.txt"
+      - "Dockerfile"
+      - ".github/workflows/docker.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/moamenfouad/deep-fake-ai-powered-detector:latest
+            ghcr.io/moamenfouad/deep-fake-ai-powered-detector:${{ github.sha }}
