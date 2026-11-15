@@ -11,8 +11,8 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
 [![CI](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml)
-![Test AUC](https://img.shields.io/badge/test_AUC-0.920-0d0d0d)
-![Version](https://img.shields.io/badge/version-1.2.0-ffd400)
+![Test AUC](https://img.shields.io/badge/test_AUC-0.965-0d0d0d)
+![Version](https://img.shields.io/badge/version-2.0.0-ffd400)
 ![License](https://img.shields.io/badge/license-MIT-0d0d0d)
 
 > **Drop a photo or a video. See if the face is real. See why.**
@@ -21,13 +21,13 @@
 
 DeepShield is an AI-powered deepfake detector built for the DEPI Machine Learning track.
 Upload a photo or a short video and it finds every face, checks it with two pretrained
-deepfake detectors fused by a model we trained on four public datasets, and shows the
+deepfake detectors fused by a model we trained on 20 public sources, and shows the
 evidence: **where** in the face (Grad-CAM heatmap), **when** in the video (per-frame
 timeline), and **which known fakes it resembles** (closest training cases). Every check
 can be exported as a PDF forensic report.
 
 <p align="center">
-  <img src="docs/images/demo.gif" width="860" alt="Choosing the AI face sample, the verdict appearing, and dragging the evidence-map slider">
+  <img src="docs/images/demo.gif" width="860" alt="Picking a sample portrait, the verdict appearing, and dragging the evidence-map slider">
 </p>
 
 ---
@@ -36,20 +36,22 @@ can be exported as a PDF forensic report.
 
 ### 🧠 Detection
 - **Two frozen expert detectors:** [CommunityForensics ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT) and [SigLIP deepfake-detector v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1), each trained on different kinds of fakes
-- **Fusion head** trained on our data: logistic regression over 1,154 features (both embeddings plus both scores) that lifts test AUC from 0.852 (simple average) to **0.920**
+- **Fusion head** trained on 8,075 faces from 13 sources, from StyleGAN to FLUX.1 and SDXL, plus everyday and stock photos: logistic regression over 1,154 features (both embeddings plus both scores) that lifts held-out test AUC from 0.853 (simple average) to **0.965**
+- **A separate video head** trained on video frames, because compression and motion blur fooled the photo head
 - **YuNet face detection** with a 25% context crop, so every face in a group photo gets its own score
 - **Three-way verdict:** real, inconclusive or likely manipulated, instead of a forced yes/no
 
 ### 🔍 Explainability
 - **Evidence map:** Grad-CAM heatmap with a drag slider to compare it against the original face
 - **Detector agreement:** both backbones' raw scores, with a note when the fusion head overrides them
-- **Closest known cases (retrieval):** each face is matched against 3,440 labeled training faces and the 5 nearest are shown with their kind of fake ("5 of 5 are StyleGAN faces"). Only 64-number fingerprints and labels are stored, never images
-- **Unfamiliar-image guard:** when even the closest known face is a weak match, the result is reported as inconclusive instead of a confident wrong answer (fires on 2% of test faces, where accuracy drops to 67%)
+- **Closest known cases (retrieval):** each face is matched against 8,075 labeled training faces and the 5 nearest are shown with their kind of fake ("5 of 5 are StyleGAN faces"). Only 64-number fingerprints and labels are stored, never images
+- **Unfamiliar-image guard:** when even the closest known face is a weak match, the result is reported as inconclusive instead of a confident wrong answer (fires on 2% of test faces, where accuracy drops to 74%)
 - **Video timeline:** 24 sampled frames scored and plotted; click a point to jump the video there
 
 ### ⚡ Experience
 - Analysis starts the moment a file is chosen; drop a file anywhere or paste with Ctrl+V / Cmd+V
-- Built-in samples, recent checks in the tab, one-click summary copy
+- Six built-in sample photos (three real, three AI) with the answer revealed after each check
+- Recent checks in the tab, one-click summary copy
 - **PDF forensic report** for every analysis
 - Fully responsive, keyboard accessible, files checked in memory and never stored
 
@@ -61,12 +63,12 @@ can be exported as a PDF forensic report.
 
 | AI-generated face | Real photo |
 |---|---|
-| *Caught at 99.9%, both detectors agree, 5 of 5 nearest cases are StyleGAN fakes* | *0.6% manipulation probability; all 5 nearest cases are real FFHQ photos* |
+| *A Midjourney portrait caught at 99.3%; all 5 nearest cases are FLUX.1 and SDXL fakes* | *A Pexels stock photo at 19.6%; the nearest cases are real stock and celebrity photos* |
 | ![Fake result](docs/images/result-fake.png) | ![Real result](docs/images/result-real.png) |
 
 | Video face swap | PDF forensic report |
 |---|---|
-| *24-frame timeline; the fusion head catches a swap both raw detectors missed* | *Verdict, crops, heatmaps, backbone scores and closest cases* |
+| *A held-out Google DFD face swap: 24-frame timeline, caught at 77.5% although both raw detectors lean real* | *Verdict, crops, heatmaps, backbone scores and closest cases* |
 | ![Video result](docs/images/result-video.png) | ![PDF report](docs/images/pdf-report.png) |
 
 | On a phone | Accuracy, live from the test set |
@@ -77,35 +79,44 @@ can be exported as a PDF forensic report.
 
 ## 📊 Results
 
-Held-out test set: **1,320 face crops** from four public datasets. No identity, actor or
-source video appears in both train and test ([details](docs/DATASETS.md)).
+Every number below comes from data that was **never used for training or for any
+modelling choice**: held-out people, videos and files from the 13 training sources, plus
+7 sources the model never saw at all ([data](docs/DATASETS.md), [model card](docs/MODEL_CARD.md)).
 
-| Model | AUC | Accuracy | F1 |
+| Held-out photos (face crops) | n | DeepShield v2 | v1 | Best single detector |
+|---|---|---|---|---|
+| Original four test sets (StyleGAN, DeepFakeFace, Celeb-DF, DFD) | 1,320 | **0.931** | 0.920 | 0.816 |
+| Newer sources (FLUX, SDXL, face swaps, everyday and stock photos) | 1,065 | **0.992** | 0.858 | 0.885 |
+| **All held-out test faces** | 2,385 | **0.965** (89.1% accuracy) | 0.893 | 0.857 |
+| Never-trained sources (Midjourney, StyleGAN3, HeyGen, LFW, ...) | 2,403 | 0.969 (91.1% accuracy) | 0.919 | 0.994 |
+
+AUC: 1.0 is perfect, 0.5 is a coin flip. On the never-trained sources one backbone on its
+own ranks slightly better than the fused model; everywhere else the fusion wins clearly.
+
+| Kind of fake | Caught | Kind of real photo | Correctly passed |
 |---|---|---|---|
-| **DeepShield (fused)** | **0.920** | **82.7%** | **0.816** |
-| Average of the same two backbones | 0.852 | 74.7% | 0.678 |
-| Best single pretrained model | 0.816 | 72.5% | 0.644 |
+| SDXL, Midjourney, Collaborative Diffusion | 100% | Flickr everyday photos | 99.3% |
+| FLUX.1 faces and portraits | 99.0 to 99.4% | Pexels stock photos | 97.7% |
+| StyleGAN and StyleGAN3 | 97.4 to 98.7% | CelebA-HQ portraits | 94.6% |
+| Face swaps (CelebA) | 88.4% | YouTube clips | 93.3% |
+| Celeb-DF v2 video frames | 67.5% | LFW news photos | 82.0% |
+| HeyGen talking-head avatars | **39.2%**, the weak spot | | |
 
-| Dataset (type of fake) | AUC |
-|---|---|
-| 140k Real and Fake Faces (StyleGAN) | 0.999 |
-| DeepFakeFace (Stable Diffusion, InsightFace swaps) | 0.968 |
-| Google DFD (video face swaps) | 0.848 |
-| Celeb-DF v2 (high-quality video face swaps) | 0.586, the known weak spot |
+**Robust to everyday edits.** On 600 held-out faces, AUC stays at 0.932 after "shared
+online" resizing and JPEG, and 0.898 after messaging-app compression (v1: 0.809 and 0.696).
 
-**Whole videos, end to end** (90 held-out videos through the full app pipeline):
+**Whole videos** (90 held-out videos through the app pipeline, video head):
 
-| Videos | AUC | Accuracy at 0.5 |
+| Videos | AUC | v1 AUC |
 |---|---|---|
-| Google DFD, held-out actors (30) | 0.951 | 76.7% (every fake caught) |
-| Celeb-DF v2, official test list (60) | 0.713 | 65.0% |
-| All (90) | 0.761 | 68.9% |
+| Celeb-DF v2, official test list (60) | **0.817** | 0.713 |
+| Google DFD, held-out actors (30) | 0.907 | 0.951 |
+| All (90) | **0.778** | 0.761 |
 
-Combining 24 frames helps: Celeb-DF rises from 0.59 per frame to 0.71 per video.
+One video in three is answered "inconclusive" rather than guessed; when the app does
+answer, it is right 79.7% of the time.
 
-<p align="center"><img src="reports/per_dataset_auc.png" width="720" alt="AUC per dataset, fused model vs best single pretrained model"></p>
-
-Full method, numbers and limitations: [Model card](docs/MODEL_CARD.md).
+<p align="center"><img src="reports/accuracy_by_source.png" width="720" alt="Share of held-out faces judged correctly per source, v2 against v1"></p>
 
 ---
 
@@ -123,6 +134,7 @@ YuNet face detector ──────────────► square crop, 2
 │
 ▼
 Fusion head (logistic regression, 1,154 features)
+  photos: photo head, videos: video head
 │
 ├─── Verdict ─────────────────────► real / inconclusive / fake
 │     image: most suspicious face, video: mean + top-quartile
@@ -133,10 +145,11 @@ Fusion head (logistic regression, 1,154 features)
 
 How the model was built:
 
-1. **Benchmark:** five public deepfake detectors from the Hugging Face Hub were tested on our data. The best scored 0.82 AUC; two were near coin-flip.
-2. **Let the data pick the backbones:** every pair was scored on a validation split carved out of training data. CommunityForensics ViT + SigLIP v1 won.
-3. **Light fine-tune:** a 1,155-parameter fusion head learns to combine them. It trains in seconds on a CPU and adds 0.07 AUC over averaging.
-4. **Retrieval:** a 5-nearest-neighbour vote alone reaches 0.81 AUC, so it is shown as supporting evidence while the verdict stays with the fusion head.
+1. **Data from 20 sources:** old and new generators, face swaps, studio portraits and everyday snapshots, so the model cannot cheat by spotting a photo style. Seven sources are held back entirely to test generators it never saw.
+2. **Let the data pick the backbones:** nine public detectors and encoders were compared with leave-one-source-out validation on the training split. CommunityForensics ViT + SigLIP v1 stayed best.
+3. **Light fine-tune:** a 1,155-parameter fusion head learns to combine them, chosen by how well it handles a whole domain it was not trained on, then calibrated. It trains in seconds on a CPU.
+4. **A head for videos:** frames of videos get their own head trained on video frames, with a whole-video calibration.
+5. **Retrieval:** a 5-nearest-neighbour vote alone reaches 0.90 AUC, so it is shown as supporting evidence, and it flags images unlike anything in training as inconclusive.
 
 Design decisions and diagram: [ARCHITECTURE.md](docs/ARCHITECTURE.md). Version history: [CHANGELOG.md](CHANGELOG.md).
 
@@ -159,7 +172,7 @@ Design decisions and diagram: [ARCHITECTURE.md](docs/ARCHITECTURE.md). Version h
 | scikit-learn | Fusion head, PCA for the retrieval index, metrics |
 | OpenCV YuNet | Face detection |
 | Grad-CAM | Evidence heatmaps |
-| NumPy | Cosine nearest-neighbour search over 3,440 fingerprints |
+| NumPy | Cosine nearest-neighbour search over 8,075 fingerprints |
 
 **Frontend**
 
@@ -173,7 +186,7 @@ Design decisions and diagram: [ARCHITECTURE.md](docs/ARCHITECTURE.md). Version h
 
 | Technology | Purpose |
 |---|---|
-| Docker / Docker Compose | One-command run |
+| Docker / Docker Compose | One-command run; image published to the GitHub Container Registry |
 | GitHub Actions | Lint and tests on every push |
 | Hugging Face Hub | Free download of the two backbone models |
 | Cloudflare Tunnel | Free public link to the app running on a laptop |
@@ -215,18 +228,19 @@ Tests use a stub model, so they run in seconds without downloads.
 
 ---
 
-## 🌍 Share a Public Link
+## 🌍 Hosting
 
-The app runs on a normal laptop CPU, and a free
-[Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)
-turns it into a public HTTPS link that opens on any phone. No account or credit card needed.
+The app needs about **2 GB of RAM** and no GPU. Where it fits:
 
-```bash
-brew install cloudflared                        # once (macOS)
-cloudflared tunnel --url http://localhost:7860  # while the app is running
-```
+| Option | Cost | Fits? |
+|---|---|---|
+| Your laptop + [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) | Free, no account | Yes, while the laptop is on |
+| [Azure for Students](https://learn.microsoft.com/en-us/azure/education-hub/about-azure-for-students) + Container Apps | Free $100 credit, no card | Yes |
+| Render, 1 CPU / 2 GB instance | $25 per month | Yes |
+| Render free instance | Free | **No**, it has 512 MB of RAM ([Render pricing](https://render.com/pricing)) |
 
-Full guide: [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Every push to `main` publishes a ready image, `ghcr.io/moamenfouad/deep-fake-ai-powered-detector`,
+that runs on any of them. Step-by-step guides: [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
@@ -265,10 +279,14 @@ curl -F "file=@photo.jpg" http://localhost:7860/api/analyze
 
 ```bash
 pip install -r ml/requirements.txt
-python ml/scripts/prepare_data.py --out data/crops   # stream and crop 4,760 faces
-python ml/scripts/train_fusion.py --data data/crops  # benchmark, select, train, test
-python ml/scripts/eval_videos.py --per-class 30      # whole-video evaluation
-python ml/scripts/build_similar_index.py             # closest-known-cases index
+python ml/scripts/prepare_data.py --out data/crops             # the four core datasets
+python ml/scripts/extend_data.py --out data/crops              # 16 more sources
+python ml/scripts/extend_data.py --out data/crops --augment    # augmented training copies
+python ml/scripts/train_fusion.py --data data/crops            # select, train and test the photo head
+python ml/scripts/train_video_head.py                          # the video head
+python ml/scripts/build_similar_index.py                       # closest-known-cases index
+python ml/scripts/eval_robustness.py                           # everyday-edit robustness
+python ml/scripts/eval_videos.py --per-class 30                # whole-video evaluation
 python ml/scripts/make_figures.py
 ```
 
@@ -281,7 +299,7 @@ Notebooks: [data exploration](ml/notebooks/01_data_exploration.ipynb),
 ```
 app/            FastAPI service, web UI (app/static), services (detector, classifier, analyzer, similar, report)
 ml/             data preparation, training, evaluation scripts and notebooks
-models/         trained fusion head and retrieval index (backbone weights download at start)
+models/         photo head, video head and retrieval index (backbone weights download at start)
 reports/        metrics and figures from the held-out test
 tests/          pytest suite (runs with a stub model, no downloads)
 docs/           architecture, datasets, deployment, model card, screenshots
@@ -291,17 +309,19 @@ docs/           architecture, datasets, deployment, model card, screenshots
 
 ## ⚠️ Limitations
 
-DeepShield is a screening aid, not proof. It is weakest on high-quality face swaps
-(Celeb-DF), on heavily compressed re-uploads, and on generators released after its
-training data, and unusual photos such as strong coloured stage lighting can fool it.
-The unfamiliar-image guard catches some of these cases, not all. It judges faces only: a real face placed into a fake scene still reads as
-real. Read the [model card](docs/MODEL_CARD.md) before relying on a result.
+DeepShield is a screening aid, not proof. It is weakest on talking-head avatars
+(HeyGen), on high-quality face swaps (Celeb-DF), on generators released after its
+training data, and on unusual photos such as strong coloured stage lighting. The
+unfamiliar-image guard catches some of these cases, not all. It judges faces only: a
+real face placed into a fake scene still reads as real. Read the
+[model card](docs/MODEL_CARD.md) before relying on a result.
 
 ## 🙏 Credits
 
 - **Backbones:** [CommunityForensics-DeepfakeDet-ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT) ([Park and Owens, CVPR 2025](https://arxiv.org/abs/2411.04125)) and [deepfake-detector-model-v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1)
 - **Face detector:** [OpenCV YuNet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
-- **Datasets:** [140k Real and Fake Faces](https://huggingface.co/datasets/TheKernel01/140k-Real-and-Fake-Faces), [DeepFakeFace](https://arxiv.org/abs/2309.02218), [Celeb-DF v2](https://arxiv.org/abs/1909.12962), [FaceForensics++ / Google DFD](https://arxiv.org/abs/1901.08971)
+- **Datasets:** 20 public sources, each credited in [DATASETS.md](docs/DATASETS.md), including [140k Real and Fake Faces](https://huggingface.co/datasets/TheKernel01/140k-Real-and-Fake-Faces), [DeepFakeFace](https://arxiv.org/abs/2309.02218), [Celeb-DF v2](https://arxiv.org/abs/1909.12962), [FaceForensics++ / Google DFD](https://arxiv.org/abs/1901.08971), SFHQ-T2I, CelebA-HQ, COCO, Flickr30k and Pexels
+- **Sample photos:** three from [Pexels](https://www.pexels.com/license/) (free to use), three AI portraits from SFHQ-T2I and DF40
 - **Font:** [Archivo](https://github.com/Omnibus-Type/Archivo) by Omnibus-Type (SIL Open Font License)
 
 ## 👤 Author

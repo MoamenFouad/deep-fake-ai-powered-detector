@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.0.0 (November 2026)
+
+### Model
+- **Bigger, newer training data.** 12,863 face crops from 20 public sources instead
+  of 4,760 from 4. New fakes: FLUX.1, SDXL and SFHQ-T2I portraits, CelebA face swaps.
+  New real photos: CelebA-HQ, COCO, Flickr30k and Pexels stock photos, so studio
+  lighting and everyday snapshots are both covered. Seven more sources (Midjourney,
+  StyleGAN3, Collaborative Diffusion, HeyGen avatars, LFW, YouTube, whichfaceisreal)
+  are kept out of training and only tested. Every training crop also has two
+  augmented copies (harsh degradations, and "shared online" resizing plus JPEG).
+- **Retrained photo head** with leave-one-domain-out model selection and Platt
+  calibration. Held-out test AUC 0.965 on 2,385 faces (v1 head: 0.893); 0.931 on the
+  original four test sets (v1: 0.920); 0.969 on the never-trained sources (v1: 0.919).
+- **New video head.** The photo head started to read video compression as a sign of
+  a fake, so videos now use a second head trained only on frames of training videos,
+  with its own whole-video calibration. 90 held-out videos: AUC 0.778 (v1: 0.761),
+  Celeb-DF v2 0.817 (v1: 0.713).
+- **Robustness report** (`ml/scripts/eval_robustness.py`): AUC after resizing, JPEG,
+  blur, messaging-app compression and coloured lighting, all higher than v1.
+- Grad-CAM now explains the fused score through both backbones and says which side
+  (fake or real) the highlighted areas support.
+- Closest-known-cases index rebuilt on the 8,075 training faces; unfamiliar-image
+  threshold re-measured (0.62).
+
+### App
+- Six new sample photos (three Pexels stock photos, FLUX, Midjourney and SDXL
+  portraits, none of them used in training) with an "answer" reveal after each check.
+- Faceless images are always reported as inconclusive.
+- Safer uploads: images over 60 megapixels or under 16 px are refused, very large
+  photos are scaled down before decoding, 16-bit images are handled, video frames are
+  capped at 1280 px so long 4K clips cannot exhaust memory, broken frame-rate metadata
+  is ignored.
+- The API answers 503 with `Retry-After` while the models load, and the page retries
+  by itself.
+- Each result reports the analyzed image size and which side the heatmap explains;
+  file names are escaped in the PDF report.
+
+### Hosting
+- A ready-made Docker image is published to the GitHub Container Registry on every
+  push, and the container listens on `$PORT` when a host sets it.
+- [DEPLOYMENT.md](docs/DEPLOYMENT.md) compares hosts. Render's free instance (512 MB)
+  is too small for two vision transformers; Azure for Students (free credit, no card)
+  and a laptop with a Cloudflare tunnel both work.
+
 ## 1.2.0 (November 2026)
 
 ### New
