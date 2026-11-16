@@ -11,8 +11,7 @@
   const MAX_VIDEO = 60 * 1024 * 1024;
   const HISTORY_SIZE = 8;
 
-  const VERDICT = { fake: "Likely manipulated", real: "Likely authentic", uncertain: "Inconclusive" };
-  const KICKER = { fake: "Manipulation detected", real: "No manipulation found", uncertain: "Too close to call" };
+  const LABEL = { fake: "Likely manipulated", real: "Likely authentic", uncertain: "Inconclusive" };
   const NOTES = {
     multiple_faces: "Several faces were found. The verdict follows the most suspicious face.",
     rotated: "The photo was sideways, so it was turned upright to find the face.",
@@ -27,15 +26,24 @@
     faceswap: "Face swap", celeba: "Celebrity photo", celebahq: "Celebrity photo", coco: "Everyday photo",
     flickr: "Everyday photo", pexels: "Stock photo",
   };
-  const ENGINE = { "fusion-head": "Fusion head", "video-head": "Video head", "ensemble-mean": "Two-model average", stub: "Test stub" };
+  // The real stages of the pipeline, in order. Timings are typical, so the list
+  // advances on its own and completes when the answer arrives.
+  const STEPS = {
+    image: [["Finding faces", 300], ["First detector (ViT)", 800], ["Second detector (SigLIP)", 1400],
+      ["Combining the evidence", 1800], ["Building the evidence map", null]],
+    video: [["Sampling up to 24 frames", 1500], ["Finding the face in each frame", 4000],
+      ["Running both detectors on every frame", 11000], ["Combining the frames", 15000],
+      ["Explaining the most suspicious frame", null]],
+  };
 
-  const state = { file: null, kind: null, url: null, result: null, busy: false, history: [], current: null, sample: null };
+  const state = { file: null, kind: null, url: null, result: null, busy: false, history: [], current: null, sample: null, face: 0 };
 
   const pct = (p, d = 1) => new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: d }).format(p);
   const num = (n, d = 1) => new Intl.NumberFormat("en-US", { maximumFractionDigits: d }).format(n);
   const fixed = (n, d = 3) => n.toFixed(d);
-  const tone = (v) => ({ fake: "var(--fake)", real: "var(--real)", uncertain: "var(--unsure)" }[v] || "var(--ink-3)");
+  const tone = (v) => ({ fake: "var(--fake)", real: "var(--real)", uncertain: "var(--unsure)" }[v] || "var(--mute)");
   const verdictOf = (p) => (p >= 0.6 ? "fake" : p <= 0.4 ? "real" : "uncertain");
+  const size = (b) => (b >= 1048576 ? `${num(b / 1048576)} MB` : `${num(b / 1024, 0)} KB`);
 
   const el = (tag, attrs = {}, ...kids) => {
     const node = document.createElement(tag);
@@ -49,7 +57,6 @@
     kids.flat().forEach((k) => k != null && k !== false && node.append(k));
     return node;
   };
-  const tag = (n, small = false) => el("span", { class: small ? "tag sm" : "tag", "aria-hidden": "true" }, String(n));
   const icon = (d) => {
     const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     s.setAttribute("viewBox", "0 0 24 24");
@@ -58,9 +65,8 @@
     return s;
   };
   const ICONS = {
-    pdf: '<path d="M7 3h7l5 5v13H7Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 3v5h5M10 13h6M10 17h6" fill="none" stroke="currentColor" stroke-width="2"/>',
-    copy: '<path d="M8 8h12v12H8Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V4H4v12h4" fill="none" stroke="currentColor" stroke-width="2"/>',
-    again: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+    pdf: '<path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="2"/>',
   };
 
   // ------------------------------------------------------------------ toast
@@ -75,16 +81,18 @@
 
   if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) $("#pasteKey").textContent = "⌘ V";
 
+  // ------------------------------------------------------------------ panels
+  function showPanel(name) {
+    $("#intro").hidden = name !== "intro";
+    $("#checking").hidden = name !== "checking";
+    $("#result").hidden = name !== "result";
+    $("#app").classList.toggle("empty", name === "intro");
+    $("#report").scrollTop = 0;
+  }
+
   // ------------------------------------------------------------------ intake
   const drop = $("#drop");
   const input = $("#file");
-  const statusEl = $("#status");
-  const resetBtn = $("#resetBtn");
-
-  function setStatus(msg, isError = false) {
-    statusEl.textContent = msg;
-    statusEl.classList.toggle("error", isError);
-  }
 
   function kindOf(file) {
     const ext = (file.name.split(".").pop() || "").toLowerCase();
@@ -93,21 +101,57 @@
     return null;
   }
 
-  function showMedia(kind, url) {
+  function clearMedia() {
+    releaseCurrentUrl();
+    Object.assign(state, { file: null, kind: null, url: null, current: null, result: null });
+    $("#stage").replaceChildren();
+    $$(".box").forEach((b) => b.remove());
+    $("#viewer").hidden = true;
+    $("#dropEmpty").hidden = false;
+    drop.classList.remove("has-file");
+    drop.setAttribute("role", "button");
+    drop.setAttribute("aria-label", "Choose a photo or video to check");
+    drop.tabIndex = 0;
+    $("#fileMeta").textContent = "";
+    $("#tabMedia").textContent = "Photo";
+    $$(".tab").forEach((t) => { t.disabled = t.dataset.tab !== "media"; });
+    setTab("media");
+  }
+
+  function showError(title, msg, retry) {
+    showPanel("checking");
+    $(".progress").hidden = true;
+    $("#checkTitle").textContent = title;
+    $("#steps").replaceChildren();
+    $("#progressBar").style.width = "0";
+    const note = $("#checkNote");
+    note.textContent = msg;
+    note.classList.add("error");
+    $$(".check-actions").forEach((n) => n.remove());
+    $("#checking").append(el("div", { class: "actions check-actions" },
+      retry ? el("button", { class: "pill dark", type: "button", onclick: retry }, "Try again") : null,
+      el("button", { class: retry ? "pill" : "pill dark", type: "button", onclick: () => { resetIntake(); input.click(); } }, "Choose another file")));
+  }
+
+  function showMedia(kind, url, name, bytes) {
     const stage = $("#stage");
     stage.replaceChildren();
+    $$(".box").forEach((b) => b.remove());
     const media = document.createElement(kind === "image" ? "img" : "video");
     media.src = url;
     if (kind === "video") Object.assign(media, { muted: true, controls: true, playsInline: true, preload: "metadata" });
-    else media.alt = "";
+    else media.alt = "The file being checked";
     stage.append(media);
     $("#dropEmpty").hidden = true;
-    $("#preview").hidden = false;
+    $("#viewer").hidden = false;
     drop.classList.add("has-file");
     drop.removeAttribute("role");
     drop.removeAttribute("aria-label");
     drop.tabIndex = -1;
-    resetBtn.hidden = false;
+    $("#tabMedia").textContent = kind === "video" ? "Video" : "Photo";
+    setTab("media");
+    $$(".tab").forEach((t) => { if (t.dataset.tab !== "media") t.disabled = true; });
+    $("#fileMeta").textContent = `${name}, ${size(bytes)}`;
   }
 
   function releaseCurrentUrl() {
@@ -117,18 +161,22 @@
   function choose(file, sample = null) {
     if (!file || state.busy) return;
     const kind = kindOf(file);
-    if (!kind) return setStatus("This file type is not supported. Use JPG, PNG, WEBP, MP4, MOV, WEBM or AVI.", true);
-    if (file.size > (kind === "image" ? MAX_IMAGE : MAX_VIDEO)) {
-      return setStatus("This file is too large. Photos can be up to 10 MB and videos up to 60 MB.", true);
+    if (!kind) {
+      clearMedia();
+      return showError("This file type is not supported", "Use a JPG, PNG, WEBP or BMP photo, or an MP4, MOV, WEBM, AVI or MKV video.");
     }
-    clearResult();
+    if (file.size > (kind === "image" ? MAX_IMAGE : MAX_VIDEO)) {
+      clearMedia();
+      return showError("This file is too large", "Photos can be up to 10 MB and videos up to 60 MB.");
+    }
     releaseCurrentUrl();
-    Object.assign(state, { file, kind, url: URL.createObjectURL(file), current: null, sample });
-    showMedia(kind, state.url);
+    Object.assign(state, { file, kind, url: URL.createObjectURL(file), current: null, sample, result: null, face: 0 });
+    showMedia(kind, state.url, file.name, file.size);
     analyze();
   }
 
   input.addEventListener("change", () => { choose(input.files[0]); input.value = ""; });
+  $("#pickBtn").addEventListener("click", () => { if (!state.busy) input.click(); });
   drop.addEventListener("click", () => { if (!drop.classList.contains("has-file")) input.click(); });
   drop.addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && !drop.classList.contains("has-file")) { e.preventDefault(); input.click(); }
@@ -155,7 +203,7 @@
     $("#dropOverlay").hidden = true;
     drop.classList.remove("dragging");
     choose(e.dataTransfer.files[0]);
-    $("#analyze").scrollIntoView({ block: "start" });
+    $("#app").scrollIntoView({ block: "start" });
   });
 
   window.addEventListener("paste", (e) => {
@@ -168,44 +216,74 @@
   });
 
   $$("[data-sample]").forEach((btn) => btn.addEventListener("click", async () => {
+    if (state.busy) return;
     try {
       const res = await fetch(btn.dataset.sample);
       if (!res.ok) throw new Error(res.statusText);
       const blob = await res.blob();
-      // The samples are unlabeled on purpose; the answer is shown next to the verdict.
+      // The samples are unlabeled on purpose; the answer is shown with the result.
       choose(new File([blob], btn.dataset.sample.split("/").pop(), { type: blob.type || "image/jpeg" }),
         { truth: btn.dataset.truth, origin: btn.dataset.origin });
-    } catch { setStatus("The server could not be reached. Check your connection and try again.", true); }
+    } catch { showError("The server could not be reached", "Check your connection and try again."); }
   }));
 
   function resetIntake() {
     if (state.busy) return;
-    releaseCurrentUrl();
-    Object.assign(state, { file: null, kind: null, url: null, current: null });
-    $("#stage").replaceChildren();
-    $("#preview").hidden = true;
-    $("#dropEmpty").hidden = false;
-    drop.classList.remove("has-file", "busy");
-    drop.setAttribute("role", "button");
-    drop.setAttribute("aria-label", "Choose a photo or video to check");
-    drop.tabIndex = 0;
-    resetBtn.hidden = true;
-    clearResult();
-    setStatus("");
+    clearMedia();
+    showPanel("intro");
     renderHistory();
   }
-  resetBtn.addEventListener("click", () => { resetIntake(); drop.focus(); });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && state.file && !state.busy && !e.target.closest("input, textarea")) resetIntake();
   });
+
+  // ------------------------------------------------------------------ view tabs
+  function setTab(name) {
+    $$(".tab").forEach((t) => {
+      const on = t.dataset.tab === name;
+      t.classList.toggle("on", on);
+      t.setAttribute("aria-selected", String(on));
+    });
+    $$(".view").forEach((v) => v.classList.toggle("on", v.dataset.view === name));
+    if (name === "media" && placeBoxes) placeBoxes();
+  }
+  $$(".tab").forEach((t) => t.addEventListener("click", () => { if (!t.disabled) setTab(t.dataset.tab); }));
+  $("#wipeRange").addEventListener("input", (e) => $("#wipe").style.setProperty("--pos", `${e.target.value}%`));
+
+  // ------------------------------------------------------------------ checking stages
+  let stepTimers = [];
+  function startSteps(kind) {
+    stepTimers.forEach(clearTimeout);
+    stepTimers = [];
+    const steps = STEPS[kind];
+    $("#checkTitle").textContent = kind === "video" ? "Checking your video" : "Checking your photo";
+    const note = $("#checkNote");
+    note.classList.remove("error");
+    $(".progress").hidden = false;
+    note.textContent = kind === "video" ? "Videos take 10 to 40 seconds." : "Photos take a few seconds.";
+    $$(".check-actions").forEach((n) => n.remove());
+    const list = $("#steps");
+    list.replaceChildren(...steps.map(([label]) => el("li", {}, label)));
+    const items = $$("li", list);
+    const go = (i) => {
+      items.forEach((li, j) => { li.className = j < i ? "done" : j === i ? "now" : ""; });
+      $("#progressBar").style.width = `${Math.round(((i + 0.5) / steps.length) * 92)}%`;
+    };
+    go(0);
+    steps.forEach(([, at], i) => { if (at != null) stepTimers.push(setTimeout(() => go(i + 1), at)); });
+    showPanel("checking");
+  }
+  function finishSteps() {
+    stepTimers.forEach(clearTimeout);
+    $$("#steps li").forEach((li) => { li.className = "done"; });
+    $("#progressBar").style.width = "100%";
+  }
 
   // ------------------------------------------------------------------ analysis
   async function analyze() {
     if (!state.file) return;
     state.busy = true;
-    drop.classList.add("busy");
-    $("#scanLabel").textContent = state.kind === "video" ? "Scanning 24 frames" : "Scanning";
-    setStatus(state.kind === "video" ? "Checking the video. This can take up to a minute." : "Checking the photo. This takes a few seconds.");
+    startSteps(state.kind);
     const file = state.file;
     try {
       let res, data;
@@ -216,32 +294,25 @@
         data = await res.json().catch(() => ({}));
         // 503 = the models are still loading after a restart. Keep waiting, up to about two minutes.
         if (res.status !== 503 || attempt >= 30) break;
-        setStatus("The models are still warming up. This takes up to a minute after a restart.");
+        $("#checkNote").textContent = "The models are still warming up after a restart. This takes up to a minute.";
         await new Promise((resolve) => setTimeout(resolve, 4000));
       }
       if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : res.statusText);
+      if (state.file !== file) return;
+      finishSteps();
       data.sample = state.sample;
       state.result = data;
       addHistory(data);
+      state.busy = false;
       renderResult(data);
-      setStatus(`${state.file.name}, checked in ${num(data.processing_ms / 1000)} s`);
-      if (matchMedia("(max-width: 1020px)").matches) $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
-      setStatus(err instanceof TypeError
-        ? "The server could not be reached. Check your connection and try again."
-        : `The file could not be analyzed: ${err.message}`, true);
+      stepTimers.forEach(clearTimeout);
+      state.busy = false;
+      if (err instanceof TypeError) showError("The server could not be reached", "Check your connection and try again.", analyze);
+      else showError("This file could not be checked", err.message);
     } finally {
       state.busy = false;
-      drop.classList.remove("busy");
     }
-  }
-
-  function clearResult() {
-    state.result = null;
-    $("#resultBody").hidden = true;
-    $("#resultBody").replaceChildren();
-    $("#resultEmpty").hidden = false;
-    $$(".box").forEach((b) => b.remove());
   }
 
   // ------------------------------------------------------------------ history (this tab only)
@@ -260,11 +331,10 @@
     const h = state.history.find((x) => x.id === id);
     if (!h || state.busy) return;
     releaseCurrentUrl();
-    Object.assign(state, { file: h.file, kind: h.kind, url: h.url, result: h.result, current: h.id });
-    showMedia(h.kind, h.url);
+    Object.assign(state, { file: h.file, kind: h.kind, url: h.url, result: h.result, current: h.id, sample: h.result.sample });
+    showMedia(h.kind, h.url, h.name, h.file.size);
     renderResult(h.result);
     renderHistory();
-    setStatus(`${h.name}, checked in ${num(h.result.processing_ms / 1000)} s`);
   }
 
   function renderHistory() {
@@ -273,7 +343,7 @@
     $("#recent").hidden = state.history.length < 2;
     state.history.forEach((h) => {
       const r = h.result;
-      const label = `${h.name}: ${VERDICT[r.verdict]}, ${pct(r.fake_probability, 0)}`;
+      const label = `${h.name}: ${LABEL[r.verdict]}, ${pct(r.fake_probability, 0)}`;
       list.append(el("li", {}, el("button", {
         class: `recent-item${h.id === state.current ? " on" : ""}`, type: "button", title: label, "aria-label": label,
         onclick: () => openHistory(h.id),
@@ -283,142 +353,175 @@
   }
 
   // ------------------------------------------------------------------ result
+  function headline(r) {
+    const video = r.media_type === "video";
+    const span = (cls, text) => el("span", { class: cls }, text);
+    if (r.notes.includes("no_face")) return ["uncertain", [`We couldn't find a face in this ${video ? "video" : "image"}.`]];
+    if (r.notes.includes("unfamiliar")) return ["uncertain", ["This photo is ", span("uncertain", "unlike anything we trained on.")]];
+    if (r.verdict === "fake") {
+      return ["fake", video ? ["This video most likely contains a ", span("fake", "manipulated face.")]
+        : ["This face is most likely ", span("fake", "AI-generated or manipulated.")]];
+    }
+    if (r.verdict === "real") {
+      return ["real", video ? ["The face in this video looks ", span("real", "authentic.")]
+        : ["This face looks ", span("real", "authentic.")]];
+    }
+    return ["uncertain", ["This one is ", span("uncertain", "too close to call.")]];
+  }
+
   function strength(p) {
     if (p >= 0.85) return "strong";
     if (p >= 0.6) return "some";
     return "very few";
   }
 
+  function subline(r) {
+    if (r.notes.includes("no_face")) {
+      return `DeepShield judges faces. The score above comes from the whole ${r.media_type === "video" ? "frame" : "image"} and is not a verdict.`;
+    }
+    if (r.notes.includes("unfamiliar")) {
+      return "Unusual lighting, heavy editing or a newer AI generator can do this, so the score is not trusted. Check where the file came from.";
+    }
+    if (r.verdict === "uncertain") return "The evidence sits between 40% and 60%, so DeepShield will not guess. Check where the file came from.";
+    const what = r.media_type === "video" ? `across ${num(r.frames_analyzed, 0)} frames` : `in ${num(r.processing_ms / 1000)} s`;
+    return `${pct(r.confidence, 0)} confidence, checked ${what}. The face shows ${strength(r.fake_probability)} signs of AI manipulation.`;
+  }
+
   function renderResult(r) {
-    const body = $("#resultBody");
-    body.replaceChildren();
+    const box = $("#result");
+    box.replaceChildren();
+    const [kind, words] = headline(r);
+    const decisive = r.faces.reduce((best, f, i) => (f.fake_probability > r.faces[best].fake_probability ? i : best), 0);
+    state.face = decisive;
 
-    const unfamiliar = r.notes.includes("unfamiliar");
-    const noFace = r.notes.includes("no_face");
-    const sub = noFace
-      ? `DeepShield judges faces, and it found none in this ${r.media_type === "video" ? "video" : "image"}. The score above comes from the whole frame and is not a verdict.`
-      : unfamiliar
-      ? "This face is unlike the faces DeepShield was trained on (unusual lighting, heavy editing or a newer AI generator), so the score above is not trusted. Check the source of the file."
-      : r.verdict === "uncertain"
-        ? "The evidence sits between 40% and 60%, so DeepShield will not guess. Check the source of the file."
-        : `${pct(r.confidence, 0)} confidence. The face shows ${strength(r.fake_probability)} signs of AI manipulation.`;
-    body.append(el("section", { class: "verdict", "data-v": r.verdict, "aria-label": VERDICT[r.verdict] },
-      el("div", { class: "verdict-row" },
-        el("div", {},
-          el("p", { class: "verdict-kicker" }, tag(1), noFace ? "No face found" : unfamiliar ? "Unfamiliar image" : KICKER[r.verdict]),
-          el("h2", { class: "verdict-word" }, VERDICT[r.verdict])),
-        el("p", { class: "verdict-num" }, el("b", {}, pct(r.fake_probability)), el("span", {}, "manipulation probability"))),
-      el("div", { role: "img", "aria-label": `${pct(r.fake_probability)} manipulation probability on a scale from real to fake` },
-        el("div", { class: "gauge" },
-          el("span", { class: "gauge-track" }), el("span", { class: "gauge-band" }),
-          el("span", { class: "gauge-pin", style: `--p:${r.fake_probability}` })),
-        el("div", { class: "gauge-scale" }, el("span", {}, "Real"), el("span", {}, "Unsure"), el("span", {}, "Fake"))),
-      el("p", { class: "verdict-sub" }, sub)));
-
-    const facts = r.media_type === "video"
-      ? [["Frames", num(r.frames_analyzed, 0)], ["Duration", r.duration_seconds ? `${num(r.duration_seconds)} s` : "-"]]
-      : [["Faces", num(r.notes.includes("no_face") ? 0 : r.faces.length, 0)]];
-    facts.push(["Time", `${num(r.processing_ms / 1000)} s`], ["Engine", ENGINE[r.engine] || r.engine]);
-    body.append(el("dl", { class: "facts" }, facts.map(([k, v]) => el("div", {}, el("dt", {}, k), el("dd", {}, v)))));
+    box.append(
+      el("span", { class: `label ${kind}` }, r.notes.includes("no_face") ? "No face found" : LABEL[kind]),
+      el("h2", { class: "headline" }, words),
+      el("div", { class: "meter", role: "img", "aria-label": `${pct(r.fake_probability)} manipulation probability` },
+        el("span", { class: "meter-track" }, el("i", { style: `width:${Math.max(r.fake_probability * 100, 1.5)}%;background:${tone(r.verdict)}` })),
+        el("b", {}, pct(r.fake_probability)),
+        el("div", { class: "meter-scale", "aria-hidden": "true" }, el("span", {}, "Real"), el("span", {}, "Unsure"), el("span", {}, "Fake"))),
+      el("p", { class: "sub" }, subline(r)));
 
     if (r.sample) {
       const right = r.verdict === r.sample.truth;
       const answer = r.sample.truth === "fake" ? "AI-generated" : "a real photo";
-      body.append(el("p", { class: `truth ${right ? "right" : r.verdict === "uncertain" ? "" : "wrong"}` },
+      box.append(el("p", { class: `truth ${right ? "right" : r.verdict === "uncertain" ? "" : "wrong"}` },
         el("b", {}, `Answer: this sample is ${answer}.`), ` ${r.sample.origin}. `,
         right ? "DeepShield got it right." : r.verdict === "uncertain" ? "DeepShield was not sure." : "DeepShield got this one wrong."));
     }
 
-    if (r.media_type === "video" && r.timeline.length) body.append(renderTimeline(r));
+    if (r.media_type === "video" && r.timeline.length) box.append(renderTimeline(r));
 
-    body.append(el("div", { class: "faces" }, r.faces.map((f, i) => renderFace(f, i, r))));
+    const hasFace = !r.notes.includes("no_face");
+    if (hasFace && r.faces.length > 1) {
+      box.append(el("div", { class: "sec" }, el("h3", {}, "Faces"),
+        el("div", { class: "faces-pick", role: "group", "aria-label": "Choose a face" },
+          r.faces.map((f, i) => el("button", {
+            type: "button", class: i === decisive ? "on" : "", "data-face": i,
+            onclick: () => selectFace(r, i),
+          }, `Face ${i + 1}: ${pct(f.fake_probability, 0)}`)))));
+    }
+    box.append(el("div", { class: "face-detail" }));
 
     const notes = r.notes.filter((n) => NOTES[n]);
-    if (notes.length) body.append(el("ul", { class: "notes" }, notes.map((n) => el("li", {}, NOTES[n]))));
+    if (notes.length) box.append(el("ul", { class: "notes" }, notes.map((n) => el("li", {}, NOTES[n]))));
 
-    body.append(el("div", { class: "actions" },
-      el("a", { class: "btn ink", href: `/api/report/${r.id}`, download: "" }, icon(ICONS.pdf), "Download PDF report"),
-      el("button", { class: "btn line", type: "button", onclick: () => copySummary(r) }, icon(ICONS.copy), "Copy summary"),
-      el("button", { class: "btn line", type: "button", onclick: () => { resetIntake(); input.click(); } }, icon(ICONS.again), "Check another file")));
+    box.append(el("div", { class: "actions" },
+      el("a", { class: "pill dark", href: `/api/report/${r.id}`, download: "" }, icon(ICONS.pdf), "Download report"),
+      el("button", { class: "pill", type: "button", onclick: () => copySummary(r) }, icon(ICONS.copy), "Copy summary"),
+      el("button", { class: "pill", type: "button", onclick: () => { resetIntake(); input.click(); } }, "New check")));
 
-    $("#resultEmpty").hidden = true;
-    body.hidden = false;
-    $$(".box").forEach((b) => b.remove());
+    showPanel("result");
+    selectFace(r, decisive);
     if (r.media_type === "image") drawBoxes(r);
+    if (matchMedia("(max-width: 1100px)").matches) $("#report").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function copySummary(r) {
-    const name = (state.history.find((h) => h.id === r.id) || {}).name || r.filename;
-    const text = `DeepShield: ${VERDICT[r.verdict]} (${pct(r.fake_probability)} manipulation probability, `
-      + `${pct(r.confidence, 0)} confidence). File: ${name}.`;
-    try {
-      await navigator.clipboard.writeText(text);
-      toast("Summary copied");
-    } catch { toast("Copy failed. Select the text and copy it yourself."); }
+  function selectFace(r, i) {
+    state.face = i;
+    const f = r.faces[i];
+    $$(".faces-pick button").forEach((b) => b.classList.toggle("on", Number(b.dataset.face) === i));
+    $$(".box").forEach((b) => b.classList.toggle("sel", Number(b.dataset.face) === i));
+    const crop = f.crop_png ? `data:image/png;base64,${f.crop_png}` : null;
+    const heat = f.heatmap_png ? `data:image/png;base64,${f.heatmap_png}` : null;
+    const hasMap = Boolean(crop && heat && !r.notes.includes("no_face"));
+    $$(".tab").forEach((t) => { if (t.dataset.tab !== "media") t.disabled = !hasMap; });
+    if (hasMap) {
+      $("#mapImg").src = heat;
+      $("#wipeA").src = crop;
+      $("#wipeB").src = heat;
+    } else if (!$(".view.on[data-view='media']")) setTab("media");
+    $(".face-detail").replaceChildren(...renderFaceDetail(f, r, hasMap));
   }
 
-  function renderFace(f, i, r) {
-    const node = $("#faceTpl").content.firstElementChild.cloneNode(true);
-    const wipe = $(".wipe", node);
-    $(".wipe-a", node).src = `data:image/png;base64,${f.crop_png}`;
-    $(".wipe-b", node).src = `data:image/png;base64,${f.heatmap_png || f.crop_png}`;
-    const range = $(".wipe-range", node);
-    range.addEventListener("input", () => wipe.style.setProperty("--pos", `${range.value}%`));
-
-    $(".face-title", node).textContent = r.media_type === "video" ? "Most suspicious frame" : (f.box || r.notes.includes("rotated") ? `Face ${i + 1}` : "Whole image");
-    $(".wipe-note", node).textContent = f.heatmap_png
-      ? `Warm areas pushed the score toward ${f.explains === "real" ? "authentic" : "manipulated"}.`
-      : "";
-    const score = $(".face-score", node);
-    score.textContent = pct(f.fake_probability);
-    score.style.color = tone(f.verdict);
-
-    // Detector agreement
-    const scores = Object.entries(f.model_scores);
-    const dl = $(".backbones", node);
-    scores.forEach(([name, p]) => dl.append(el("div", {},
-      el("dt", { title: name }, name), el("dd", {}, pct(p)),
-      el("span", { class: "bar", "aria-hidden": "true" }, el("i", { style: `--p:${p};--tone:${tone(verdictOf(p))}` })))));
-    const sides = scores.map(([, p]) => p >= 0.5);
-    const fused = f.fake_probability >= 0.5;
-    let agree = "";
-    if (scores.length >= 2) {
-      if (!sides.every((s) => s === sides[0])) agree = "The two detectors disagree. The fusion layer weighs their evidence.";
-      else if (sides[0] !== fused && f.verdict !== "uncertain") {
-        agree = fused
-          ? "On their raw scores both lean real, but the fusion layer reads their internal features as manipulated."
-          : "On their raw scores both lean fake, but the fusion layer reads their internal features as authentic.";
-      } else agree = sides[0] ? "Both detectors lean fake." : "Both detectors lean real.";
+  function renderFaceDetail(f, r, hasMap) {
+    const out = [];
+    const who = r.media_type === "video" ? "the most suspicious frame" : r.faces.length > 1 ? `face ${state.face + 1}` : "this face";
+    if (hasMap) {
+      const open = () => {
+        setTab("compare");
+        if (matchMedia("(max-width: 1100px)").matches) $(".media-card").scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      out.push(el("div", { class: "sec" }, el("h3", {}, "Evidence map"),
+        el("button", { class: "evidence", type: "button", onclick: open, "aria-label": `Compare ${who} with its evidence map` },
+          el("img", { src: `data:image/png;base64,${f.crop_png}`, alt: "" }),
+          el("img", { src: `data:image/png;base64,${f.heatmap_png}`, alt: "" }),
+          el("span", {}, `Warm areas on ${who} pushed the score toward ${f.explains === "real" ? "authentic" : "manipulated"}. `,
+            el("u", {}, "Compare side by side")))));
     }
-    $(".agree", node).textContent = agree;
-
-    // Closest known cases
+    const scores = Object.entries(f.model_scores);
+    if (scores.length && !r.notes.includes("no_face")) {
+      const sides = scores.map(([, p]) => p >= 0.5);
+      const fused = f.fake_probability >= 0.5;
+      let agree = "";
+      if (scores.length >= 2) {
+        if (!sides.every((s) => s === sides[0])) agree = "The two detectors disagree. The fusion layer weighs their evidence.";
+        else if (sides[0] !== fused && f.verdict !== "uncertain") {
+          agree = fused
+            ? "On their raw scores both lean real, but the fusion layer reads their internal features as manipulated."
+            : "On their raw scores both lean fake, but the fusion layer reads their internal features as authentic.";
+        } else agree = sides[0] ? "Both detectors lean fake." : "Both detectors lean real.";
+      }
+      out.push(el("div", { class: "sec" }, el("h3", {}, "Detector agreement"),
+        el("div", { class: "detectors" }, scores.map(([name, p]) => el("div", { class: "det" },
+          el("p", { title: name }, name), el("b", {}, pct(p)),
+          el("span", { class: "bar", "aria-hidden": "true" }, el("i", { style: `width:${Math.max(p * 100, 2)}%;background:${tone(verdictOf(p))}` }))))),
+        agree ? el("p", { class: "note" }, agree) : null));
+    }
     if (f.similar && f.similar.length) {
-      const box = $(".exhibit.similar", node);
-      box.hidden = false;
       const groups = [];
       f.similar.forEach((s) => {
         const g = groups.find((x) => x.kind === s.kind && x.label === s.label);
         if (g) g.sims.push(s.similarity); else groups.push({ kind: s.kind, label: s.label, sims: [s.similarity] });
       });
-      const ul = $(".neighbors", box);
-      groups.forEach((g) => ul.append(el("li", { title: `Similarity ${g.sims.map((v) => fixed(v, 2)).join(", ")}` },
-        el("i", { style: `background:${g.label === "fake" ? "var(--fake)" : "var(--real)"}`, "aria-hidden": "true" }),
-        el("span", {}, `${KINDS[g.kind] || g.kind} (${g.label})`),
-        el("b", {}, `×${g.sims.length}`))));
       const k = f.similar.length;
       const fakes = f.similar.filter((s) => s.label === "fake");
       const side = fakes.length * 2 >= k ? fakes : f.similar.filter((s) => s.label === "real");
       const counts = {};
       side.forEach((s) => { counts[s.kind] = (counts[s.kind] || 0) + 1; });
       const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-      $(".sim-note", box).textContent = f.unfamiliar
-        ? `Even the closest known face is a weak match (similarity ${fixed(f.similar[0].similarity, 2)}), `
-          + "so this face is outside what the model has learned."
-        : `${side.length} of the ${k} most similar known faces are ${side === fakes ? "fakes" : "real"}, `
-          + `mostly ${KINDS[top] || top}.`;
+      const note = f.unfamiliar
+        ? `Even the closest known face is a weak match (similarity ${fixed(f.similar[0].similarity, 2)}), so this face is outside what the model has learned.`
+        : `${side.length} of the ${k} most similar faces in the training data are ${side === fakes ? "fakes" : "real"}, mostly ${KINDS[top] || top}.`;
+      out.push(el("div", { class: "sec" }, el("h3", {}, "Closest known cases"),
+        el("ul", { class: "cases" }, groups.map((g) => el("li", { title: `Similarity ${g.sims.map((v) => fixed(v, 2)).join(", ")}` },
+          el("i", { style: `background:${g.label === "fake" ? "var(--fake)" : "var(--real)"}`, "aria-hidden": "true" }),
+          el("span", {}, `${KINDS[g.kind] || g.kind}, ${g.label}`),
+          el("b", {}, `${g.sims.length} of ${k}`)))),
+        el("p", { class: "note" }, note)));
     }
-    return node;
+    return out;
+  }
+
+  async function copySummary(r) {
+    const name = (state.history.find((h) => h.id === r.id) || {}).name || r.filename;
+    const text = `DeepShield: ${LABEL[r.verdict]} (${pct(r.fake_probability)} manipulation probability, `
+      + `${pct(r.confidence, 0)} confidence). File: ${name}.`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Summary copied");
+    } catch { toast("Copy failed. Select the text and copy it yourself."); }
   }
 
   let placeBoxes = null;
@@ -429,16 +532,16 @@
     if (!img) return;
     const place = () => {
       $$(".box").forEach((b) => b.remove());
-      if (state.result !== r) return;
+      if (state.result !== r || !img.clientWidth) return;
       // Boxes are in the pixels of the image the server analyzed (very large photos are scaled down first).
       const sx = img.clientWidth / (r.width || img.naturalWidth);
       const sy = img.clientHeight / (r.height || img.naturalHeight);
       r.faces.forEach((f, i) => {
         if (!f.box) return;
         $("#stage").append(el("div", {
-          class: `box v-${f.verdict}`,
+          class: `box v-${f.verdict}${i === state.face ? " sel" : ""}`, "data-face": i,
           style: `left:${f.box.x * sx}px;top:${f.box.y * sy}px;width:${f.box.w * sx}px;height:${f.box.h * sy}px`,
-        }, el("span", { class: "box-label" }, tag(i + 1), el("b", {}, pct(f.fake_probability)))));
+        }, el("b", {}, r.faces.length > 1 ? `${i + 1}: ${pct(f.fake_probability)}` : pct(f.fake_probability))));
       });
     };
     placeBoxes = place;
@@ -446,7 +549,7 @@
   }
 
   function renderTimeline(r) {
-    const W = 600, H = 190, L = 40, R = 12, T = 14, B = 28;
+    const W = 600, H = 170, L = 40, R = 10, T = 12, B = 26;
     const pts = r.timeline;
     const tMax = Math.max(pts[pts.length - 1].t, 0.001);
     const x = (tv) => L + (tv / tMax) * (W - L - R);
@@ -463,7 +566,7 @@
       svg.append(lbl);
     });
     [0, tMax].forEach((tv, i) => {
-      const lbl = s("text", { x: x(tv), y: H - 8, "text-anchor": i === 0 ? "start" : "end" });
+      const lbl = s("text", { x: x(tv), y: H - 6, "text-anchor": i === 0 ? "start" : "end" });
       lbl.textContent = `${num(tv, 0)} s`;
       svg.append(lbl);
     });
@@ -476,13 +579,12 @@
     const cursor = s("line", { class: "cursor", x1: 0, x2: 0, y1: T, y2: H - B, visibility: "hidden" });
     svg.append(cursor);
     const tip = el("p", { class: "timeline-tip" }, "Click a point to jump the video to that moment.");
-    const video = $("#stage video");
     pts.forEach((p) => {
       const has = p.fake_probability != null;
       const v = has ? p.fake_probability : 0;
       const label = has ? `${num(p.t)} s: ${pct(v)} manipulation probability` : `${num(p.t)} s: no face found`;
       const c = s("circle", { class: "dot", cx: x(p.t), cy: y(v), r: has ? 5 : 3.5, tabindex: 0, role: "button",
-        fill: has ? tone(verdictOf(v)) : "var(--rule)", "aria-label": label });
+        fill: has ? tone(verdictOf(v)) : "var(--line-2)", "aria-label": label });
       const show = () => {
         tip.textContent = label;
         cursor.setAttribute("x1", x(p.t));
@@ -493,6 +595,8 @@
         show();
         svg.querySelectorAll(".dot.on").forEach((d) => d.classList.remove("on"));
         c.classList.add("on");
+        setTab("media");
+        const video = $("#stage video");
         if (video) { try { video.pause(); video.currentTime = p.t; } catch { /* not seekable yet */ } }
       };
       c.addEventListener("mouseenter", show);
@@ -501,9 +605,7 @@
       c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); seek(); } });
       svg.append(c);
     });
-    return el("section", { class: "timeline" },
-      el("p", { class: "exhibit-title" }, tag(4, true), "Timeline", el("small", {}, `${num(pts.length, 0)} frames`)),
-      svg, tip);
+    return el("div", { class: "sec timeline" }, el("h3", {}, `Timeline, ${num(pts.length, 0)} frames`), svg, tip);
   }
 
   // ------------------------------------------------------------------ accuracy section
