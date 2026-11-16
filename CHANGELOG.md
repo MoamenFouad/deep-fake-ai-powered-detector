@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.0 (November 2026)
+
+### Changed
+- **New interface.** A calm, light product layout instead of a landing page: the file
+  on the left, a written report on the right ("This face is most likely
+  AI-generated or manipulated"), with Photo, Evidence map and Compare views of the
+  same face. Picked from three mockups built on a real result.
+- **Checking shows the real pipeline.** The scanning animation is replaced by the
+  actual stages (finding faces, each detector, combining the evidence, building the
+  evidence map) ticking off in order.
+- Several faces can be inspected one by one, and errors explain how to fix them.
+- Font: Hanken Grotesk, self-hosted under the SIL Open Font License, replaces Archivo.
+
 ## 2.0.0 (November 2026)
 
 ### Model

@@ -12,7 +12,7 @@
 
 [![CI](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml)
 ![Test AUC](https://img.shields.io/badge/test_AUC-0.965-0d0d0d)
-![Version](https://img.shields.io/badge/version-2.0.0-ffd400)
+![Version](https://img.shields.io/badge/version-2.1.0-141414)
 ![License](https://img.shields.io/badge/license-MIT-0d0d0d)
 
 > **Drop a photo or a video. See if the face is real. See why.**
@@ -63,17 +63,19 @@ can be exported as a PDF forensic report.
 
 | AI-generated face | Real photo |
 |---|---|
-| *A Midjourney portrait caught at 99.3%; all 5 nearest cases are FLUX.1 and SDXL fakes* | *A Pexels stock photo at 19.6%; the nearest cases are real stock and celebrity photos* |
+| *A Midjourney portrait caught at 99.3%; the closest known cases are FLUX.1 and SDXL fakes* | *A Pexels stock photo read as authentic, with the sample's true answer revealed* |
 | ![Fake result](docs/images/result-fake.png) | ![Real result](docs/images/result-real.png) |
 
-| Video face swap | PDF forensic report |
+| Video face swap | Compare a face with its evidence map |
 |---|---|
-| *A held-out Google DFD face swap: 24-frame timeline, caught at 77.5% although both raw detectors lean real* | *Verdict, crops, heatmaps, backbone scores and closest cases* |
-| ![Video result](docs/images/result-video.png) | ![PDF report](docs/images/pdf-report.png) |
+| *A held-out Google DFD face swap: 24-frame timeline, caught at 77.5% although both raw detectors lean real* | *Drag the slider across the face to see which regions drove the decision* |
+| ![Video result](docs/images/result-video.png) | ![Compare view](docs/images/compare.png) |
 
-| On a phone | Accuracy, live from the test set |
+| On a phone | PDF forensic report |
 |---|---|
-| ![Mobile](docs/images/mobile.png) | ![Accuracy section](docs/images/accuracy.png) |
+| ![Mobile](docs/images/mobile.png) | ![PDF report](docs/images/pdf-report.png) |
+
+<p align="center"><img src="docs/images/accuracy.png" width="900" alt="Accuracy section of the app, live from the test set"></p>
 
 ---
 
@@ -179,7 +181,7 @@ Design decisions and diagram: [ARCHITECTURE.md](docs/ARCHITECTURE.md). Version h
 | Technology | Purpose |
 |---|---|
 | HTML, CSS, vanilla JavaScript | No build step, loads instantly |
-| Archivo (variable font) | Self-hosted typography |
+| Hanken Grotesk (variable font) | Self-hosted typography |
 | Inline SVG | Gauge, timeline and accuracy charts |
 
 **Infrastructure**
@@ -329,7 +331,7 @@ real face placed into a fake scene still reads as real. Read the
 - **Face detector:** [OpenCV YuNet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
 - **Datasets:** 20 public sources, each credited in [DATASETS.md](docs/DATASETS.md), including [140k Real and Fake Faces](https://huggingface.co/datasets/TheKernel01/140k-Real-and-Fake-Faces), [DeepFakeFace](https://arxiv.org/abs/2309.02218), [Celeb-DF v2](https://arxiv.org/abs/1909.12962), [FaceForensics++ / Google DFD](https://arxiv.org/abs/1901.08971), SFHQ-T2I, CelebA-HQ, COCO, Flickr30k and Pexels
 - **Sample photos:** three from [Pexels](https://www.pexels.com/license/) (free to use), three AI portraits from SFHQ-T2I and DF40
-- **Font:** [Archivo](https://github.com/Omnibus-Type/Archivo) by Omnibus-Type (SIL Open Font License)
+- **Font:** [Hanken Grotesk](https://github.com/marcologous/hanken-grotesk) by Alfredo Marco Pradil (SIL Open Font License)
 
 ## 👤 Author
 
