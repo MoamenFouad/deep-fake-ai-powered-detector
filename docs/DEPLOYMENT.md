@@ -89,37 +89,34 @@ every push to `main` (`.github/workflows/docker.yml`), with the model weights ba
    `deep-fake-ai-powered-detector`, **Package settings**, **Change visibility**, Public.
 2. Sign up for Azure for Students with your university email.
 3. Open the [Azure Cloud Shell](https://shell.azure.com) (a terminal in the browser,
-   nothing to install) and run:
+   nothing to install), choose **Bash**, and run:
 
 ```bash
-az extension add --name containerapp --upgrade
-az provider register --namespace Microsoft.App --wait
-az provider register --namespace Microsoft.OperationalInsights --wait
-
-az containerapp up \
-  --name deepshield \
-  --resource-group deepshield-rg \
-  --location westeurope \
-  --image ghcr.io/moamenfouad/deep-fake-ai-powered-detector:latest \
-  --ingress external --target-port 7860
-
-az containerapp update \
-  --name deepshield --resource-group deepshield-rg \
-  --cpu 2 --memory 4Gi --min-replicas 0 --max-replicas 1
+curl -fsSL https://raw.githubusercontent.com/MoamenFouad/deep-fake-ai-powered-detector/main/deploy/azure.sh | bash
 ```
 
-The first command prints the public address
-(`https://deepshield.<random>.westeurope.azurecontainerapps.io`). With
-`--min-replicas 0` the app sleeps when idle and the first visit after a pause takes
-about a minute while the container starts and the models load; the page shows a
-"warming up" message and retries by itself. Use `--min-replicas 1` on presentation day
-to keep it warm, and set it back to 0 afterwards so the credit lasts.
+[`deploy/azure.sh`](../deploy/azure.sh) does everything in about 10 minutes: it
+registers the Container Apps provider, tries the regions a student subscription allows
+until one works, creates an environment with logging turned off (so there are no Log
+Analytics charges), deploys the image with 2 vCPU and 4 GiB, waits until the models
+are loaded and prints the permanent link
+(`https://deepshield.<random>.<region>.azurecontainerapps.io`).
+
+The app scales to zero when nobody uses it, so the first visit after a pause takes 1 to
+3 minutes while the container starts (if the browser gives up, reload); once the page is
+up it shows a "warming up" message until the models are loaded. At 2 vCPU and 4 GiB the monthly free grant covers about 25 hours of
+running time, and the student credit covers far more. On presentation day keep it
+awake, then let it sleep again so the credit lasts:
+
+```bash
+az containerapp update -n deepshield -g deepshield-rg --min-replicas 1   # before
+az containerapp update -n deepshield -g deepshield-rg --min-replicas 0   # after
+```
 
 To update the hosted app after a new push:
 
 ```bash
-az containerapp update --name deepshield --resource-group deepshield-rg \
-  --image ghcr.io/moamenfouad/deep-fake-ai-powered-detector:latest
+curl -fsSL https://raw.githubusercontent.com/MoamenFouad/deep-fake-ai-powered-detector/main/deploy/azure.sh | bash
 ```
 
 To stop paying anything at all: `az group delete --name deepshield-rg`.

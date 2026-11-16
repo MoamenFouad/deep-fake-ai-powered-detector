@@ -240,7 +240,14 @@ The app needs about **2 GB of RAM** and no GPU. Where it fits:
 | Render free instance | Free | **No**, it has 512 MB of RAM ([Render pricing](https://render.com/pricing)) |
 
 Every push to `main` publishes a ready image, `ghcr.io/moamenfouad/deep-fake-ai-powered-detector`,
-that runs on any of them. Step-by-step guides: [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+that runs on any of them. On Azure, one command in the browser-based
+[Cloud Shell](https://shell.azure.com) deploys it ([deploy/azure.sh](deploy/azure.sh)):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MoamenFouad/deep-fake-ai-powered-detector/main/deploy/azure.sh | bash
+```
+
+Step-by-step guides: [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
