@@ -28,14 +28,20 @@ flowchart LR
 1. **Validation** (`app/api/routes.py`): file type by MIME type or extension, size
    limits (10 MB images, 60 MB videos), empty and corrupt files rejected with clear
    4xx messages.
-2. **Face detection** (`app/services/face_detector.py`): OpenCV YuNet, a 230 KB CNN.
+2. **Provenance** (`app/services/provenance.py`): before any model runs, the file's own
+   metadata is read: C2PA Content Credentials (ChatGPT, Gemini and Adobe sign their
+   images), the IPTC digital source type in XMP, AI tool names in EXIF and Stable
+   Diffusion settings in PNG text. If it says AI made or edited the image, that decides
+   the verdict (`notes: provenance_ai`). The signer is taken from the certificate, not
+   from the free-text generator name. EXIF camera make and model are reported as a hint.
+3. **Face detection** (`app/services/face_detector.py`): OpenCV YuNet, a 230 KB CNN.
    Falls back to a Haar cascade if the weights cannot be fetched. Each face is
    cropped as a square with 25% extra context, because blending artifacts usually
    sit at the boundary between the swapped face and the original head.
-3. **Scoring** (`app/services/classifier.py`): every crop goes through two
+4. **Scoring** (`app/services/classifier.py`): every crop goes through two
    pretrained vision transformers. A forward pre-hook on each classification head
    captures the pooled embedding, so the same code works for ViT and SigLIP models.
-4. **Fusion**: a logistic-regression head trained on our data takes
+5. **Fusion**: a logistic-regression head trained on our data takes
    `[embedding_A, embedding_B, logit_A, logit_B]` (384 + 768 + 2 = 1,154 features, standardized)
    and outputs the final, Platt-calibrated probability. Photos use the photo head
    (`models/fusion_head.npz`); frames of a video use the video head
@@ -43,27 +49,33 @@ flowchart LR
    reads compression and motion blur as signs of a fake. If the photo head is missing,
    the service falls back to averaging the two backbones and reports
    `engine: ensemble-mean`.
-5. **Aggregation** (`app/services/analyzer.py`):
-   * Image: the highest face score, since one manipulated face is enough.
+6. **Aggregation** (`app/services/analyzer.py`):
+   * Image: the highest face score, since one manipulated face is enough. The whole
+     picture (longest side 1,024 px) then goes through the same two backbones and the
+     whole-image head (`models/whole_head.npz`), and a fitted stacker merges the two:
+     `logit(p) = 0.455 * logit(p_face) + 0.639 * logit(p_whole) + 0.052`. Newer
+     generators often give themselves away in the background and light rather than the
+     face. This costs one more forward pass and no extra memory.
    * Video: `0.5 * mean + 0.5 * mean(top 25%)` across frames, then the video head's
      whole-video calibration. Pure averaging dilutes clips where only part of the
      video is manipulated; pure max is noisy.
-6. **Verdict bands**: fake at 0.6 or above, real at 0.4 or below, otherwise
+7. **Verdict bands**: fake at 0.6 or above, real at 0.4 or below, otherwise
    *inconclusive*. Showing "inconclusive" honestly is better than a coin-flip label.
-7. **Explanation**: Grad-CAM of the fused score through the last transformer block of
+8. **Explanation**: Grad-CAM of the fused score through the last transformer block of
    both backbones, summed on a common grid and overlaid on the crop. It shows the
    regions that support the side the model chose (fake or real).
-8. **Closest known cases** (`app/services/similar.py`): the fusion features are
+9. **Closest known cases** (`app/services/similar.py`): the fusion features are
    standardized, weighted by the absolute fusion coefficients (so the dimensions that
    matter for the decision dominate), projected to 64 dimensions with PCA and
-   L2-normalized. Cosine similarity against the 8,075 training faces returns the 5
+   L2-normalized. Cosine similarity against the 13,751 training faces (version 2 crops plus the version 3 real-world faces) returns the 5
    nearest, with their label and kind of fake. Built offline by
-   `ml/scripts/build_similar_index.py`; the 1.2 MB index holds numbers and labels
+   `ml/scripts/build_similar_index.py`; the 1.9 MB index holds numbers and labels
    only. It is evidence for the user, not an input to the score. One exception: if
    the closest case is below the unfamiliar threshold stored in the index (0.62, the
    2nd percentile of leave-group-out similarities between training faces), the face
-   is outside what the model learned and the verdict becomes "inconclusive".
-9. **Report**: results are kept in a 64-entry in-memory LRU so the PDF can be
+   is outside what the model learned and the verdict becomes "inconclusive", unless
+   the image scores 0.9 or more (on the real-world test set every such case was a fake).
+10. **Report**: results are kept in a 64-entry in-memory LRU so the PDF can be
    generated on demand. Uploaded files are never written to permanent storage
    (videos touch a temp file that is deleted immediately after decoding).
 

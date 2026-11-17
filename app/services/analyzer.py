@@ -12,9 +12,10 @@ import cv2
 import numpy as np
 
 from app.config import Settings
-from app.schemas import AnalysisResult, Box, FaceResult, SimilarCase, TimelinePoint
+from app.schemas import AnalysisResult, Box, FaceResult, ProvenanceInfo, SimilarCase, TimelinePoint
 from app.services.face_detector import FaceDetector, crop_face
 from app.services.imaging import InvalidMediaError, bgr_to_pil, decode_image, fit, overlay_heatmap, to_png_b64
+from app.services.provenance import inspect as inspect_provenance
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +24,12 @@ log = logging.getLogger(__name__)
 FRAME_MAX_SIDE = 1280
 # Face crops are scaled down to this before scoring; the models resize to 224-440 px anyway.
 CROP_MAX_SIDE = 768
+
+
+# Longest side of the picture given to the whole-image head (as in training).
+WHOLE_MAX_SIDE = 1024
+# Unfamiliar faces are still reported as fake above this probability (see reports/wild_metrics.json).
+UNFAMILIAR_TRUSTED_FAKE = 0.9
 
 
 def _shrink(frame: np.ndarray) -> np.ndarray:
@@ -89,6 +96,7 @@ class Analyzer:
         t0 = time.perf_counter()
         image = decode_image(data)
         notes: list[str] = []
+        prov = inspect_provenance(data)
         faces = self.detector.detect(image)
         rotated = None
         if not faces:
@@ -114,16 +122,31 @@ class Analyzer:
         face_results = [self._face_result(c, s, b) for c, s, b in zip(crops, scores, boxes)]
         # An image is manipulated if any face in it is manipulated.
         decisive = max(face_results, key=lambda f: f.fake_probability)
+        # The whole picture is a second witness: scenes, lighting and rendering give away
+        # generators whose faces alone look clean.
+        p_whole = None
+        if hasattr(self.classifier, "score_whole"):
+            p_whole = self.classifier.score_whole(bgr_to_pil(fit(source if faces else image, WHOLE_MAX_SIDE)))
         p = decisive.fake_probability
+        if faces and p_whole is not None:
+            p = self.classifier.combine(p, p_whole)
         if len(face_results) > 1:
             notes.append("multiple_faces")
         verdict, confidence = self.verdict(p), self.confidence(p)
         if not faces:
             # The models were trained on faces only, so a score for a faceless image is not a verdict.
             verdict, confidence = "uncertain", 0.0
-        elif decisive.unfamiliar:
+        elif decisive.unfamiliar and p < UNFAMILIAR_TRUSTED_FAKE:
+            # An unfamiliar face is not trusted to be real, but a very confident fake call is:
+            # on the 2026 test images every unfamiliar face scored 0.9 or more was a fake.
             verdict, confidence = "uncertain", 0.0
             notes.append("unfamiliar")
+        if prov.ai:
+            # The file says itself that AI made it. A pixel score can be fooled; this label cannot be
+            # added by accident, so it decides the verdict.
+            p = max(p, 0.99)
+            verdict, confidence = "fake", 1.0
+            notes.append("provenance_ai")
 
         return AnalysisResult(
             id=uuid.uuid4().hex[:12],
@@ -139,6 +162,8 @@ class Analyzer:
             processing_ms=int((time.perf_counter() - t0) * 1000),
             engine=self.classifier.engine,
             notes=notes,
+            whole_image_probability=None if p_whole is None else round(p_whole, 4),
+            provenance=ProvenanceInfo(**{k: getattr(prov, k) for k in ProvenanceInfo.model_fields}),
         )
 
     # -------------------------------------------------------------------- video

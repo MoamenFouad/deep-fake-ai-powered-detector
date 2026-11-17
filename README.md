@@ -11,8 +11,8 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
 [![CI](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/MoamenFouad/deep-fake-ai-powered-detector/actions/workflows/ci.yml)
-![Test AUC](https://img.shields.io/badge/test_AUC-0.965-0d0d0d)
-![Version](https://img.shields.io/badge/version-2.1.0-141414)
+![Real-world AUC](https://img.shields.io/badge/real--world_AUC-0.987-0d0d0d)
+![Version](https://img.shields.io/badge/version-3.0.0-141414)
 ![License](https://img.shields.io/badge/license-MIT-0d0d0d)
 
 > **Drop a photo or a video. See if the face is real. See why.**
@@ -20,11 +20,13 @@
 </div>
 
 DeepShield is an AI-powered deepfake detector built for the DEPI Machine Learning track.
-Upload a photo or a short video and it finds every face, checks it with two pretrained
-deepfake detectors fused by a model we trained on 20 public sources, and shows the
-evidence: **where** in the face (Grad-CAM heatmap), **when** in the video (per-frame
-timeline), and **which known fakes it resembles** (closest training cases). Every check
-can be exported as a PDF forensic report.
+Upload a photo or a short video. DeepShield first reads what the file says about itself
+(ChatGPT, Gemini and Adobe sign their images with Content Credentials), then checks every
+face **and the whole picture** with two pretrained detectors fused by heads we trained on
+research datasets plus 5,700 newer real-world images. It shows the evidence: **where** in
+the face (Grad-CAM heatmap), **when** in the video (per-frame timeline), and **which known
+fakes it resembles** (closest training cases). Every check can be exported as a PDF
+forensic report.
 
 <p align="center">
   <img src="docs/images/demo.gif" width="860" alt="Picking a sample portrait, the verdict appearing, and dragging the evidence-map slider">
@@ -35,8 +37,10 @@ can be exported as a PDF forensic report.
 ## 🚀 Features
 
 ### 🧠 Detection
+- **Content Credentials first:** C2PA manifests (ChatGPT, Gemini, Adobe), the IPTC "digital source type" in XMP, AI tool names in EXIF and Stable Diffusion settings in PNG text. When the file says AI made it, that is the verdict, with who signed it
+- **Face and whole picture:** the same backbones read the face crop and the whole image; a fitted stacker merges both, so a clean face in a generated scene is still caught
 - **Two frozen expert detectors:** [CommunityForensics ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT) and [SigLIP deepfake-detector v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1), each trained on different kinds of fakes
-- **Fusion head** trained on 8,075 faces from 13 sources, from StyleGAN to FLUX.1 and SDXL, plus everyday and stock photos: logistic regression over 1,154 features (both embeddings plus both scores) that lifts held-out test AUC from 0.853 (simple average) to **0.965**
+- **Photo heads** trained on 8,075 research-dataset faces plus 5,700 newer images from [OpenFake](https://huggingface.co/datasets/ComplexDataLab/OpenFake) (about 70 generators up to GPT-image, Imagen 4 and Flux.2, real LAION and Pexels photos), Reddit and COCO: logistic regression over 1,154 features (both embeddings plus both scores). On 1,995 held-out real-world images AUC rises from 0.944 (version 2) to **0.987**
 - **A separate video head** trained on video frames, because compression and motion blur fooled the photo head
 - **YuNet face detection** with a 25% context crop, so every face in a group photo gets its own score
 - **Three-way verdict:** real, inconclusive or likely manipulated, instead of a forced yes/no
@@ -44,8 +48,9 @@ can be exported as a PDF forensic report.
 ### 🔍 Explainability
 - **Evidence map:** Grad-CAM heatmap with a drag slider to compare it against the original face
 - **Detector agreement:** both backbones' raw scores, with a note when the fusion head overrides them
-- **Closest known cases (retrieval):** each face is matched against 8,075 labeled training faces and the 5 nearest are shown with their kind of fake ("5 of 5 are StyleGAN faces"). Only 64-number fingerprints and labels are stored, never images
-- **Unfamiliar-image guard:** when even the closest known face is a weak match, the result is reported as inconclusive instead of a confident wrong answer (fires on 2% of test faces, where accuracy drops to 74%)
+- **Closest known cases (retrieval):** each face is matched against 13,751 labeled training faces and the 5 nearest are shown with their kind of fake ("5 of 5 are StyleGAN faces"). Only 64-number fingerprints and labels are stored, never images
+- **Unfamiliar-image guard:** when even the closest known face is a weak match, the result is reported as inconclusive instead of a confident wrong answer (fires on 5% of real-world test images, where accuracy drops to 78%); a fake call of 90% or more is kept
+- **Two views and the file's own label:** the face score and the whole-picture score side by side, and what the file's metadata says
 - **Video timeline:** 24 sampled frames scored and plotted; click a point to jump the video there
 
 ### ⚡ Experience
@@ -82,8 +87,44 @@ can be exported as a PDF forensic report.
 ## 📊 Results
 
 Every number below comes from data that was **never used for training or for any
-modelling choice**: held-out people, videos and files from the 13 training sources, plus
-7 sources the model never saw at all ([data](docs/DATASETS.md), [model card](docs/MODEL_CARD.md)).
+modelling choice** ([data](docs/DATASETS.md), [model card](docs/MODEL_CARD.md)).
+
+### Real-world images (version 3)
+
+Version 2 was accurate on research datasets but not on the photos people actually check.
+Version 3 was measured on 1,995 held-out images: real photos and AI images people posted on
+Reddit (half of [OpenFake](https://huggingface.co/datasets/ComplexDataLab/OpenFake)'s
+Reddit split), OpenFake's test images from the newest generators, and everyday COCO photos.
+
+| What the app answers | Version 2 | **Version 3** |
+|---|---|---|
+| Real Reddit photos called **fake** | 7.9% | **1.3%** |
+| Real Reddit photos called real | 78.9% | **90.4%** |
+| AI images on Reddit caught | 55.9% | **87.0%** |
+| AI images from the newest generators caught | 65.7% | **70.7%** |
+| Everyday photos called real | 98.6% | **98.8%** |
+| AUC, all 1,995 images | 0.944 | **0.987** |
+
+| Generator (OpenFake test) | Version 2 | Version 3 |
+|---|---|---|
+| GPT-image-2 | 36% | **64%** |
+| Sora 2 | 60% | **80%** |
+| Veo 3 | 81% | **100%** |
+| Midjourney 7 | 94% | **97%** |
+| Seedream 5 | 92% | 92% |
+| Flux.2 klein | 32% | 26%, the weak spot |
+
+The remaining answers are "inconclusive". Version 2 is shown without its unfamiliar-image
+guard, which would have turned another 20% of these images into "inconclusive". Images signed with Content Credentials (most
+files downloaded straight from ChatGPT or Gemini) are labelled from the signature and
+are not part of these numbers, because OpenFake strips metadata.
+
+### Research datasets (face crops)
+
+The version 2 test sets: held-out people, videos and files from the 13 training sources,
+plus 7 sources never used for training. Version 3's photo head trades a little here for
+the real-world gains above (all held-out faces 0.965 to 0.959, never-trained sources 0.969
+to 0.953), mostly on face swaps and HeyGen avatar frames. The table shows version 2.
 
 | Held-out photos (face crops) | n | DeepShield v2 | v1 | Best single detector |
 |---|---|---|---|---|
@@ -293,7 +334,10 @@ python ml/scripts/extend_data.py --out data/crops              # 16 more sources
 python ml/scripts/extend_data.py --out data/crops --augment    # augmented training copies
 python ml/scripts/train_fusion.py --data data/crops            # select, train and test the photo head
 python ml/scripts/train_video_head.py                          # the video head
-python ml/scripts/build_similar_index.py                       # closest-known-cases index
+python -m ml.scripts.collect_wild reddit --row-groups 80        # newer real-world images (see the script)
+python -m ml.scripts.extract_wild data/wild/list.txt data/wild/feats.pkl
+python -m ml.scripts.train_wild --feats data/wild/feats.pkl --meta "data/wild/meta_*.csv"
+python ml/scripts/build_similar_index.py --wild-feats data/wild/feats.pkl --wild-meta "data/wild/meta_*.csv"
 python ml/scripts/eval_robustness.py                           # everyday-edit robustness
 python ml/scripts/eval_videos.py --per-class 30                # whole-video evaluation
 python ml/scripts/make_figures.py
@@ -318,11 +362,12 @@ docs/           architecture, datasets, deployment, model card, screenshots
 
 ## ⚠️ Limitations
 
-DeepShield is a screening aid, not proof. It is weakest on talking-head avatars
-(HeyGen), on high-quality face swaps (Celeb-DF), on generators released after its
-training data, and on unusual photos such as strong coloured stage lighting. The
-unfamiliar-image guard catches some of these cases, not all. It judges faces only: a
-real face placed into a fake scene still reads as real. Read the
+DeepShield is a screening aid, not proof. It is weakest on distilled generators such as
+Flux.2 klein and Z-Image Turbo, on talking-head avatars (HeyGen), on high-quality face
+swaps (Celeb-DF), on generators released after its training data, and on unusual photos
+such as strong coloured stage lighting. The unfamiliar-image guard catches some of these
+cases, not all. Content Credentials are removed by screenshots and most messaging apps,
+so their absence proves nothing. Read the
 [model card](docs/MODEL_CARD.md) before relying on a result.
 
 ## 🙏 Credits
@@ -330,6 +375,8 @@ real face placed into a fake scene still reads as real. Read the
 - **Backbones:** [CommunityForensics-DeepfakeDet-ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT) ([Park and Owens, CVPR 2025](https://arxiv.org/abs/2411.04125)) and [deepfake-detector-model-v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1)
 - **Face detector:** [OpenCV YuNet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
 - **Datasets:** 20 public sources, each credited in [DATASETS.md](docs/DATASETS.md), including [140k Real and Fake Faces](https://huggingface.co/datasets/TheKernel01/140k-Real-and-Fake-Faces), [DeepFakeFace](https://arxiv.org/abs/2309.02218), [Celeb-DF v2](https://arxiv.org/abs/1909.12962), [FaceForensics++ / Google DFD](https://arxiv.org/abs/1901.08971), SFHQ-T2I, CelebA-HQ, COCO, Flickr30k and Pexels
+- **Real-world data (version 3):** [OpenFake](https://huggingface.co/datasets/ComplexDataLab/OpenFake) by ComplexDataLab (CC BY-NC 4.0, so DeepShield's version 3 heads are for non-commercial use) and [COCO](https://cocodataset.org/)
+- **Content Credentials:** read with [c2pa-python](https://github.com/contentauth/c2pa-python) from the [Content Authenticity Initiative](https://contentauthenticity.org/)
 - **Sample photos:** three from [Pexels](https://www.pexels.com/license/) (free to use), three AI portraits from SFHQ-T2I and DF40
 - **Font:** [Hanken Grotesk](https://github.com/marcologous/hanken-grotesk) by Alfredo Marco Pradil (SIL Open Font License)
 

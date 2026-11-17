@@ -29,7 +29,8 @@ def get_analyzer() -> Analyzer:
                 else:
                     from app.services.classifier import DeepfakeClassifier
 
-                    classifier = DeepfakeClassifier(settings.model_ids, settings.head_path, settings.video_head_path)
+                    classifier = DeepfakeClassifier(settings.model_ids, settings.head_path, settings.video_head_path,
+                                                    settings.whole_head_path)
                 similar = None
                 if not settings.use_stub_models:
                     from app.services.similar import load_index

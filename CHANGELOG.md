@@ -1,5 +1,43 @@
 # Changelog
 
+## 3.0.0 (November 2026)
+
+Version 2 did well on research datasets but badly on the kind of photo people actually
+check. Measured on 1,995 held-out real-world images (real photos and AI images posted on
+Reddit, the newest generators, everyday photos), it called 7.9% of real Reddit photos
+fake and caught only 56% of the AI images posted there. This release is about that gap.
+
+### Model
+- **Trained on newer images.** 5,700 more images with people from
+  [OpenFake](https://huggingface.co/datasets/ComplexDataLab/OpenFake) (AI images from about 70
+  generators, from Stable Diffusion 1.5 to GPT-image, Imagen 4, Flux.2 and Seedream, plus
+  real LAION and Pexels photos), half of OpenFake's Reddit split and more COCO photos.
+- **The whole picture counts.** A second head reads the same two backbones on the whole
+  image, so the background, light and texture count as evidence, not just the face. A
+  fitted stacker merges it with the face score.
+- **Results on the 1,995 held-out real-world images:** AUC 0.944 to **0.987**, accuracy
+  79.5% to 89.5%. Real Reddit photos called fake: 7.9% to **1.3%**. AI images on Reddit
+  caught: 56% to **87%**. GPT-image-2 36% to 64%, Sora 2 60% to 80%, Veo 3 81% to 100%.
+- **Trade-off:** the new photo head is slightly weaker on the version 2 research test sets
+  (AUC 0.965 to 0.959, never-trained sources 0.969 to 0.953), mostly on face swaps and
+  HeyGen avatar frames. Videos keep their own head and are unchanged.
+- Closest-known-cases index rebuilt with the new training faces (13,751 faces). The
+  unfamiliar-image guard now fires on 5% of real-world images instead of 20%, and a fake
+  call of 90% or more is kept even for an unfamiliar face (all 36 such test cases were
+  fakes).
+
+### App
+- **Content Credentials.** ChatGPT, Gemini (Nano Banana) and Adobe sign their images with
+  C2PA. DeepShield reads the label first, and also IPTC "digital source type" in XMP,
+  AI tool names in EXIF and Stable Diffusion settings in PNG files. A file that says AI
+  made it is reported as such, with who signed it. A missing label proves nothing, and
+  the result says so.
+- **Two views** in the result: the face score and the whole-picture score side by side,
+  with a sentence when they disagree (for example a clean face in a generated scene).
+- "What the file says" section, camera make and model from EXIF shown as a hint.
+- The accuracy section now leads with the real-world before and after.
+- The PDF report lists the whole-picture score and the file's own label.
+
 ## 2.1.0 (November 2026)
 
 ### Changed

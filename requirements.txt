@@ -10,3 +10,4 @@ opencv-python-headless==5.0.0.93
 pillow==12.3.0
 numpy==2.5.3
 reportlab==5.0.1
+c2pa-python==0.39.0

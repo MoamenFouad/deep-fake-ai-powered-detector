@@ -91,6 +91,22 @@ compression or colour:
 Test and unseen crops are never augmented. `ml/scripts/eval_robustness.py` degrades a
 sample of them separately to measure the effect.
 
+## Real-world images (version 3)
+
+`ml/scripts/collect_wild.py` reads Parquet row groups straight from the Hugging Face Hub
+and keeps only images with a person in the caption and a face of at least 64 px.
+
+| Source | License | Use |
+|---|---|---|
+| [ComplexDataLab/OpenFake](https://huggingface.co/datasets/ComplexDataLab/OpenFake) core train | CC BY-NC 4.0 | Training (AI images from about 70 generators, real LAION and Pexels photos) |
+| OpenFake core test | CC BY-NC 4.0 | Test only (newest generators) |
+| OpenFake reddit test | CC BY-NC 4.0 | Split 50/50 by file hash: half training, half test |
+| [detection-datasets/coco](https://huggingface.co/datasets/detection-datasets/coco) shards 3 to 9 / 10 to 13 | CC BY 4.0 annotations, Flickr image terms | Training / test |
+
+Because of OpenFake's non-commercial license, the version 3 heads are for research and
+education only. Images are not redistributed; only the trained heads and a retrieval index
+of numbers and labels are in this repository.
+
 ## Licenses and responsible use
 
 These datasets are for research and education, and each keeps the license shown on its

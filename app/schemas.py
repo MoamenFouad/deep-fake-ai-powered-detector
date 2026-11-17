@@ -43,6 +43,16 @@ class TimelinePoint(BaseModel):
     fake_probability: float | None = Field(None, description="Null when no face was found in the frame")
 
 
+class ProvenanceInfo(BaseModel):
+    ai: bool = Field(False, description="True when the file's own metadata says AI made or edited it")
+    kind: Literal["generated", "edited"] | None = None
+    source: Literal["c2pa", "xmp", "exif", "png"] | None = Field(
+        None, description="Where the label was found: C2PA Content Credentials, XMP, EXIF or PNG text")
+    tool: str | None = Field(None, description="Who made or signed the file, when known")
+    signed: bool = Field(False, description="True for C2PA Content Credentials with a valid signature")
+    camera: str | None = Field(None, description="Camera make and model from EXIF. Easy to fake, so never proof")
+
+
 class AnalysisResult(BaseModel):
     id: str
     media_type: Literal["image", "video"]
@@ -59,6 +69,9 @@ class AnalysisResult(BaseModel):
     processing_ms: int
     engine: str = Field(..., description="Which scoring engine produced the result")
     notes: list[str] = Field(default_factory=list)
+    provenance: ProvenanceInfo | None = Field(None, description="What the file's own metadata says about its origin")
+    whole_image_probability: float | None = Field(
+        None, ge=0, le=1, description="Fake probability from the whole-image detector, for photos")
 
 
 class HealthResponse(BaseModel):

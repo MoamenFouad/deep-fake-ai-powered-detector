@@ -175,6 +175,9 @@ class FusionHead:
         # Video heads also carry a calibration for the aggregated whole-video score.
         self.video_a = float(data["video_a"]) if "video_a" in data.files else 1.0
         self.video_b = float(data["video_b"]) if "video_b" in data.files else 0.0
+        # The whole-image head also carries the stacker that merges it with the face score:
+        # logit(p) = stack[0] * logit(p_face) + stack[1] * logit(p_whole) + stack[2].
+        self.stack = [float(v) for v in data["stack"]] if "stack" in data.files else None
 
     def logit(self, features: np.ndarray) -> np.ndarray:
         z = (features - self.mean) / self.std
@@ -195,7 +198,8 @@ def build_features(embeddings: list[np.ndarray], probs: list[np.ndarray]) -> np.
 
 
 class DeepfakeClassifier:
-    def __init__(self, model_ids: list[str], head_path: Path, video_head_path: Path | None = None):
+    def __init__(self, model_ids: list[str], head_path: Path, video_head_path: Path | None = None,
+                 whole_head_path: Path | None = None):
         self.backbones = [Backbone(m) for m in model_ids]
         # Forward hooks and gradients live on the shared modules, so only one request
         # may run the models at a time. Inference is CPU-bound anyway.
@@ -215,6 +219,14 @@ class DeepfakeClassifier:
                 self.video_head = video_head
             else:
                 log.warning("Video head was trained on %s, not %s; ignoring it", video_head.model_ids, model_ids)
+        # Optional head that looks at the whole picture with the same backbones (no extra memory).
+        self.whole_head: FusionHead | None = None
+        if whole_head_path is not None and whole_head_path.exists():
+            whole_head = FusionHead(whole_head_path)
+            if whole_head.model_ids == list(model_ids) and whole_head.stack is not None:
+                self.whole_head = whole_head
+            else:
+                log.warning("Whole-image head does not match the backbones; ignoring it")
         if self.head is None and not any(b.is_classifier for b in self.backbones):
             raise ValueError("Without a fusion head at least one backbone must be a deepfake classifier")
 
@@ -260,6 +272,22 @@ class DeepfakeClassifier:
                 results.append(FaceScore(float(final[i]), scores, heatmap, features[i], side))
         return results
 
+    def score_whole(self, image: Image.Image) -> float | None:
+        """Fake probability of the whole picture, or None without a whole-image head."""
+        if self.whole_head is None:
+            return None
+        with self._lock:
+            probs, embs = zip(*(b.forward([image]) for b in self.backbones))
+            features = build_features(list(embs), list(probs))
+        return float(self.whole_head.predict(features)[0])
+
+    def combine(self, p_face: float, p_whole: float | None) -> float:
+        """Merge the decisive face score with the whole-image score (fitted stacker)."""
+        if p_whole is None or self.whole_head is None:
+            return p_face
+        a, b, c = self.whole_head.stack
+        return float(_sigmoid(a * _logit(np.array(p_face)) + b * _logit(np.array(p_whole)) + c))
+
     def _explain(self, crop: Image.Image, head: FusionHead | None) -> tuple[np.ndarray | None, str]:
         """Grad-CAM of the fused score through every backbone, for the side the model chose."""
         torch = self.backbones[0].torch
@@ -299,6 +327,12 @@ class StubClassifier:
 
     def calibrate_video(self, p: float) -> float:
         return p
+
+    def score_whole(self, image: Image.Image) -> float | None:
+        return None
+
+    def combine(self, p_face: float, p_whole: float | None) -> float:
+        return p_face
 
     def score(self, crops: list[Image.Image], explain: bool = True, media: str = "image") -> list[FaceScore]:
         out = []

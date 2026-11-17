@@ -27,6 +27,8 @@ NOTE_TEXT = {
     "no_face": "No face was detected, so the whole frame was analyzed. Accuracy is lower in this mode.",
     "multiple_faces": "Several faces were found. The overall score is the highest face score.",
     "rotated": "The photo was sideways, so it was turned upright to find the face.",
+    "provenance_ai": "The file's own metadata (Content Credentials, XMP, EXIF or PNG text) says it was made "
+                     "or edited with AI, so the verdict follows that label.",
     "partial_faces": "A face was found in only some frames; frames without a face are skipped.",
     "unfamiliar": "This face is unlike the faces the model was trained on (for example unusual lighting, "
                   "heavy editing or a newer AI generator), so the result is reported as inconclusive.",
@@ -106,6 +108,20 @@ def build_pdf(result: AnalysisResult) -> bytes:
     ]
     if result.duration_seconds:
         meta.insert(1, ["Duration", f"{result.duration_seconds:.1f} s"])
+    if result.whole_image_probability is not None:
+        meta.append(["Whole picture", f"{result.whole_image_probability:.1%} fake"])
+    pv = result.provenance
+    if pv is not None:
+        if pv.ai:
+            how = "edited" if pv.kind == "edited" else "generated"
+            label = f"Says AI {how} it ({pv.source}{', ' + pv.tool if pv.tool else ''})"
+        elif pv.source == "c2pa":
+            label = f"Content Credentials{' by ' + pv.tool if pv.tool else ''}, no AI step recorded"
+        else:
+            label = "No Content Credentials or AI label (often removed by apps)"
+        meta.append(["File metadata", label[:90]])
+        if pv.camera:
+            meta.append(["Camera in EXIF", pv.camera[:60]])
     t = Table(meta, colWidths=[45 * mm, 110 * mm])
     t.setStyle(TableStyle([
         ("FONTSIZE", (0, 0), (-1, -1), 9),

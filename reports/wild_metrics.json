@@ -1,0 +1,689 @@
+{
+  "version": 3,
+  "data": {
+    "test": 2029,
+    "train": 4612,
+    "val": 1093
+  },
+  "C": {
+    "face": 0.02,
+    "whole": 0.02
+  },
+  "face_validation": {
+    "0.0005": [
+      0.9785,
+      0.9796,
+      0.9773
+    ],
+    "0.001": [
+      0.9807,
+      0.983,
+      0.9783
+    ],
+    "0.002": [
+      0.9824,
+      0.9857,
+      0.979
+    ],
+    "0.005": [
+      0.9838,
+      0.988,
+      0.9795
+    ],
+    "0.01": [
+      0.9842,
+      0.9891,
+      0.9793
+    ],
+    "0.02": [
+      0.9843,
+      0.9897,
+      0.9788
+    ],
+    "0.05": [
+      0.9838,
+      0.9899,
+      0.9777
+    ]
+  },
+  "whole_validation": {
+    "0.0005": 0.9778,
+    "0.001": 0.9794,
+    "0.002": 0.9804,
+    "0.005": 0.9815,
+    "0.01": 0.982,
+    "0.02": 0.9822,
+    "0.05": 0.9818
+  },
+  "calibration": {
+    "face": [
+      0.9609538107093488,
+      -0.1295287573619324
+    ],
+    "whole": [
+      0.7908990979194641,
+      -0.29681429266929626
+    ]
+  },
+  "stacker": {
+    "face": 0.45488013444635955,
+    "whole": 0.6387311911998298,
+    "bias": 0.05246378230330452
+  },
+  "wild_test": {
+    "v2_face_head": {
+      "overall": {
+        "n": 1995,
+        "accuracy": 0.7945,
+        "auc": 0.9444,
+        "precision": 0.9588,
+        "recall": 0.6975,
+        "f1": 0.8075,
+        "eer": 0.1273,
+        "ece": 0.1615
+      },
+      "coco_wild": {
+        "n": 500,
+        "accuracy": 0.992
+      },
+      "openfake_test": {
+        "n": 635,
+        "accuracy": 0.7323,
+        "auc": 0.8804,
+        "precision": 0.9909,
+        "recall": 0.7238,
+        "f1": 0.8365,
+        "eer": 0.2059
+      },
+      "reddit": {
+        "n": 860,
+        "accuracy": 0.7256,
+        "auc": 0.8776,
+        "precision": 0.9361,
+        "recall": 0.6725,
+        "f1": 0.7827,
+        "eer": 0.2237
+      },
+      "recall_per_generator": {
+        "ernie-image-turbo": 0.9,
+        "flux.2-klein-9b": 0.318,
+        "gpt-image-1.5": 0.775,
+        "gpt-image-2": 0.364,
+        "illustrious": 1.0,
+        "midjourney-7": 0.938,
+        "recraft-v3": 0.455,
+        "reddit": 0.672,
+        "seedream-v5.0": 0.923,
+        "sora-2": 0.6,
+        "veo-3": 0.812,
+        "wan-video-2.5": 0.852,
+        "z-image-turbo": 0.698
+      },
+      "false_alarm_per_source": {
+        "coco_wild": 0.008,
+        "openfake_test": 0.118,
+        "reddit": 0.127
+      }
+    },
+    "v3_face_head": {
+      "overall": {
+        "n": 1995,
+        "accuracy": 0.8702,
+        "auc": 0.9729,
+        "precision": 0.9812,
+        "recall": 0.8054,
+        "f1": 0.8846,
+        "eer": 0.0853,
+        "ece": 0.1112
+      },
+      "coco_wild": {
+        "n": 500,
+        "accuracy": 0.996
+      },
+      "openfake_test": {
+        "n": 635,
+        "accuracy": 0.7528,
+        "auc": 0.8949,
+        "precision": 0.989,
+        "recall": 0.7471,
+        "f1": 0.8512,
+        "eer": 0.2059
+      },
+      "reddit": {
+        "n": 860,
+        "accuracy": 0.8837,
+        "auc": 0.9657,
+        "precision": 0.9784,
+        "recall": 0.8608,
+        "f1": 0.9158,
+        "eer": 0.0746
+      },
+      "recall_per_generator": {
+        "ernie-image-turbo": 0.85,
+        "flux.2-klein-9b": 0.327,
+        "gpt-image-1.5": 0.75,
+        "gpt-image-2": 0.636,
+        "illustrious": 1.0,
+        "midjourney-7": 0.985,
+        "recraft-v3": 0.455,
+        "reddit": 0.861,
+        "seedream-v5.0": 0.923,
+        "sora-2": 0.8,
+        "veo-3": 0.875,
+        "wan-video-2.5": 0.926,
+        "z-image-turbo": 0.738
+      },
+      "false_alarm_per_source": {
+        "coco_wild": 0.004,
+        "openfake_test": 0.147,
+        "reddit": 0.053
+      }
+    },
+    "v3_whole_image": {
+      "overall": {
+        "n": 1995,
+        "accuracy": 0.8662,
+        "auc": 0.9787,
+        "precision": 0.9909,
+        "recall": 0.7908,
+        "f1": 0.8796,
+        "eer": 0.0787,
+        "ece": 0.126
+      },
+      "coco_wild": {
+        "n": 500,
+        "accuracy": 0.996
+      },
+      "openfake_test": {
+        "n": 635,
+        "accuracy": 0.7228,
+        "auc": 0.9761,
+        "precision": 0.9977,
+        "recall": 0.7088,
+        "f1": 0.8288,
+        "eer": 0.0588
+      },
+      "reddit": {
+        "n": 860,
+        "accuracy": 0.8965,
+        "auc": 0.9787,
+        "precision": 0.9892,
+        "recall": 0.8687,
+        "f1": 0.925,
+        "eer": 0.0702
+      },
+      "recall_per_generator": {
+        "ernie-image-turbo": 0.85,
+        "flux.2-klein-9b": 0.243,
+        "gpt-image-1.5": 0.8,
+        "gpt-image-2": 0.727,
+        "illustrious": 1.0,
+        "midjourney-7": 0.785,
+        "recraft-v3": 0.545,
+        "reddit": 0.869,
+        "seedream-v5.0": 0.846,
+        "sora-2": 0.8,
+        "veo-3": 0.969,
+        "wan-video-2.5": 0.926,
+        "z-image-turbo": 0.659
+      },
+      "false_alarm_per_source": {
+        "coco_wild": 0.004,
+        "openfake_test": 0.029,
+        "reddit": 0.026
+      }
+    },
+    "v3_combined": {
+      "overall": {
+        "n": 1995,
+        "accuracy": 0.8952,
+        "auc": 0.987,
+        "precision": 0.9933,
+        "recall": 0.8362,
+        "f1": 0.908,
+        "eer": 0.0591,
+        "ece": 0.1063
+      },
+      "coco_wild": {
+        "n": 500,
+        "accuracy": 0.998
+      },
+      "openfake_test": {
+        "n": 635,
+        "accuracy": 0.7701,
+        "auc": 0.9589,
+        "precision": 0.9978,
+        "recall": 0.7587,
+        "f1": 0.862,
+        "eer": 0.1176
+      },
+      "reddit": {
+        "n": 860,
+        "accuracy": 0.9279,
+        "auc": 0.9861,
+        "precision": 0.9914,
+        "recall": 0.9098,
+        "f1": 0.9488,
+        "eer": 0.0526
+      },
+      "recall_per_generator": {
+        "ernie-image-turbo": 0.95,
+        "flux.2-klein-9b": 0.262,
+        "gpt-image-1.5": 0.838,
+        "gpt-image-2": 0.636,
+        "illustrious": 1.0,
+        "midjourney-7": 0.969,
+        "recraft-v3": 0.455,
+        "reddit": 0.91,
+        "seedream-v5.0": 0.923,
+        "sora-2": 0.8,
+        "veo-3": 1.0,
+        "wan-video-2.5": 0.926,
+        "z-image-turbo": 0.73
+      },
+      "false_alarm_per_source": {
+        "coco_wild": 0.002,
+        "openfake_test": 0.029,
+        "reddit": 0.022
+      }
+    }
+  },
+  "crops_test": {
+    "v2_face_head": {
+      "overall": {
+        "n": 2385,
+        "accuracy": 0.8906,
+        "auc": 0.965,
+        "precision": 0.8623,
+        "recall": 0.9124,
+        "f1": 0.8867,
+        "eer": 0.109,
+        "ece": 0.0781
+      },
+      "celeba": {
+        "n": 98,
+        "accuracy": 0.7041
+      },
+      "celebahq": {
+        "n": 130,
+        "accuracy": 0.9462
+      },
+      "celebdf": {
+        "n": 320,
+        "accuracy": 0.675,
+        "auc": 0.7431,
+        "precision": 0.6386,
+        "recall": 0.8063,
+        "f1": 0.7127,
+        "eer": 0.3312
+      },
+      "coco": {
+        "n": 114,
+        "accuracy": 1.0
+      },
+      "dfd": {
+        "n": 200,
+        "accuracy": 0.725,
+        "auc": 0.7936,
+        "precision": 0.7103,
+        "recall": 0.76,
+        "f1": 0.7343,
+        "eer": 0.28
+      },
+      "dff": {
+        "n": 300,
+        "accuracy": 0.8767,
+        "auc": 0.948,
+        "precision": 0.952,
+        "recall": 0.7933,
+        "f1": 0.8655,
+        "eer": 0.1467
+      },
+      "faceswap": {
+        "n": 86,
+        "accuracy": 0.8837
+      },
+      "ffhq_stylegan": {
+        "n": 500,
+        "accuracy": 0.974,
+        "auc": 0.9996,
+        "precision": 0.9506,
+        "recall": 1.0,
+        "f1": 0.9747,
+        "eer": 0.008
+      },
+      "flickr": {
+        "n": 133,
+        "accuracy": 0.9925
+      },
+      "flux_faces": {
+        "n": 95,
+        "accuracy": 0.9895
+      },
+      "pexels": {
+        "n": 131,
+        "accuracy": 0.9771
+      },
+      "sdxl_faces": {
+        "n": 100,
+        "accuracy": 1.0
+      },
+      "sfhq_t2i": {
+        "n": 178,
+        "accuracy": 0.9944
+      },
+      "recall_per_generator": {
+        "celebdf_swap": 0.806,
+        "dfd_swap": 0.76,
+        "faceswap": 0.884,
+        "flux_dev": 0.989,
+        "flux_pro": 1.0,
+        "insightface": 0.58,
+        "sd_inpainting": 0.86,
+        "sd_text2img": 0.94,
+        "sdxl": 1.0,
+        "stylegan": 1.0
+      },
+      "false_alarm_per_source": {
+        "celeba": 0.296,
+        "celebahq": 0.054,
+        "celebdf": 0.456,
+        "coco": 0.0,
+        "dfd": 0.31,
+        "dff": 0.04,
+        "ffhq_stylegan": 0.052,
+        "flickr": 0.008,
+        "pexels": 0.023
+      }
+    },
+    "v3_face_head": {
+      "overall": {
+        "n": 2385,
+        "accuracy": 0.8813,
+        "auc": 0.9593,
+        "precision": 0.8793,
+        "recall": 0.866,
+        "f1": 0.8726,
+        "eer": 0.1193,
+        "ece": 0.0312
+      },
+      "celeba": {
+        "n": 98,
+        "accuracy": 0.8367
+      },
+      "celebahq": {
+        "n": 130,
+        "accuracy": 0.9769
+      },
+      "celebdf": {
+        "n": 320,
+        "accuracy": 0.5781,
+        "auc": 0.5844,
+        "precision": 0.5767,
+        "recall": 0.5875,
+        "f1": 0.582,
+        "eer": 0.4188
+      },
+      "coco": {
+        "n": 114,
+        "accuracy": 1.0
+      },
+      "dfd": {
+        "n": 200,
+        "accuracy": 0.72,
+        "auc": 0.807,
+        "precision": 0.7075,
+        "recall": 0.75,
+        "f1": 0.7282,
+        "eer": 0.26
+      },
+      "dff": {
+        "n": 300,
+        "accuracy": 0.87,
+        "auc": 0.953,
+        "precision": 0.9744,
+        "recall": 0.76,
+        "f1": 0.8539,
+        "eer": 0.12
+      },
+      "faceswap": {
+        "n": 86,
+        "accuracy": 0.814
+      },
+      "ffhq_stylegan": {
+        "n": 500,
+        "accuracy": 0.98,
+        "auc": 0.9969,
+        "precision": 0.9651,
+        "recall": 0.996,
+        "f1": 0.9803,
+        "eer": 0.024
+      },
+      "flickr": {
+        "n": 133,
+        "accuracy": 0.9925
+      },
+      "flux_faces": {
+        "n": 95,
+        "accuracy": 0.9684
+      },
+      "pexels": {
+        "n": 131,
+        "accuracy": 0.9924
+      },
+      "sdxl_faces": {
+        "n": 100,
+        "accuracy": 0.98
+      },
+      "sfhq_t2i": {
+        "n": 178,
+        "accuracy": 0.9944
+      },
+      "recall_per_generator": {
+        "celebdf_swap": 0.588,
+        "dfd_swap": 0.75,
+        "faceswap": 0.814,
+        "flux_dev": 0.979,
+        "flux_pro": 1.0,
+        "insightface": 0.52,
+        "sd_inpainting": 0.78,
+        "sd_text2img": 0.98,
+        "sdxl": 0.988,
+        "stylegan": 0.996
+      },
+      "false_alarm_per_source": {
+        "celeba": 0.163,
+        "celebahq": 0.023,
+        "celebdf": 0.431,
+        "coco": 0.0,
+        "dfd": 0.31,
+        "dff": 0.02,
+        "ffhq_stylegan": 0.036,
+        "flickr": 0.008,
+        "pexels": 0.008
+      }
+    }
+  },
+  "crops_unseen": {
+    "v2_face_head": {
+      "overall": {
+        "n": 2403,
+        "accuracy": 0.9109,
+        "auc": 0.9687,
+        "precision": 0.9305,
+        "recall": 0.9215,
+        "f1": 0.926,
+        "eer": 0.0842,
+        "ece": 0.095
+      },
+      "collabdiff": {
+        "n": 300,
+        "accuracy": 1.0
+      },
+      "heygen": {
+        "n": 153,
+        "accuracy": 0.3922
+      },
+      "lfw": {
+        "n": 500,
+        "accuracy": 0.82
+      },
+      "midjourney": {
+        "n": 400,
+        "accuracy": 1.0
+      },
+      "stylegan3": {
+        "n": 300,
+        "accuracy": 0.9867
+      },
+      "wfir": {
+        "n": 600,
+        "accuracy": 0.9717,
+        "auc": 1.0,
+        "precision": 1.0,
+        "recall": 0.9433,
+        "f1": 0.9708,
+        "eer": 0.0033
+      },
+      "youtube": {
+        "n": 150,
+        "accuracy": 0.9333
+      },
+      "recall_per_generator": {
+        "collabdiff": 1.0,
+        "heygen": 0.392,
+        "midjourney": 1.0,
+        "stylegan3": 0.987,
+        "wfir_stylegan": 0.943
+      },
+      "false_alarm_per_source": {
+        "lfw": 0.18,
+        "wfir": 0.0,
+        "youtube": 0.067
+      }
+    },
+    "v3_face_head": {
+      "overall": {
+        "n": 2403,
+        "accuracy": 0.8939,
+        "auc": 0.9531,
+        "precision": 0.9242,
+        "recall": 0.8981,
+        "f1": 0.911,
+        "eer": 0.1032,
+        "ece": 0.0554
+      },
+      "collabdiff": {
+        "n": 300,
+        "accuracy": 0.99
+      },
+      "heygen": {
+        "n": 153,
+        "accuracy": 0.1438
+      },
+      "lfw": {
+        "n": 500,
+        "accuracy": 0.826
+      },
+      "midjourney": {
+        "n": 400,
+        "accuracy": 1.0
+      },
+      "stylegan3": {
+        "n": 300,
+        "accuracy": 1.0
+      },
+      "wfir": {
+        "n": 600,
+        "accuracy": 0.9767,
+        "auc": 0.9996,
+        "precision": 1.0,
+        "recall": 0.9533,
+        "f1": 0.9761,
+        "eer": 0.0033
+      },
+      "youtube": {
+        "n": 150,
+        "accuracy": 0.8667
+      },
+      "recall_per_generator": {
+        "collabdiff": 0.99,
+        "heygen": 0.144,
+        "midjourney": 1.0,
+        "stylegan3": 1.0,
+        "wfir_stylegan": 0.953
+      },
+      "false_alarm_per_source": {
+        "lfw": 0.174,
+        "wfir": 0.0,
+        "youtube": 0.133
+      }
+    }
+  },
+  "app_outcome_with_inconclusive_band": {
+    "v2_without_guard": {
+      "reddit_real": {
+        "real": 0.789,
+        "unsure": 0.132,
+        "fake": 0.079,
+        "n": 228
+      },
+      "reddit_fake": {
+        "real": 0.223,
+        "unsure": 0.218,
+        "fake": 0.559,
+        "n": 632
+      },
+      "openfake_test_real": {
+        "real": 0.765,
+        "unsure": 0.118,
+        "fake": 0.118,
+        "n": 34
+      },
+      "openfake_test_fake": {
+        "real": 0.215,
+        "unsure": 0.128,
+        "fake": 0.657,
+        "n": 601
+      },
+      "coco_wild_real": {
+        "real": 0.986,
+        "unsure": 0.014,
+        "fake": 0.0,
+        "n": 500
+      }
+    },
+    "v3_app": {
+      "reddit_real": {
+        "real": 0.904,
+        "unsure": 0.083,
+        "fake": 0.013,
+        "n": 228
+      },
+      "reddit_fake": {
+        "real": 0.068,
+        "unsure": 0.062,
+        "fake": 0.87,
+        "n": 632
+      },
+      "openfake_test_real": {
+        "real": 0.941,
+        "unsure": 0.029,
+        "fake": 0.029,
+        "n": 34
+      },
+      "openfake_test_fake": {
+        "real": 0.188,
+        "unsure": 0.105,
+        "fake": 0.707,
+        "n": 601
+      },
+      "coco_wild_real": {
+        "real": 0.988,
+        "unsure": 0.01,
+        "fake": 0.002,
+        "n": 500
+      }
+    }
+  }
+}

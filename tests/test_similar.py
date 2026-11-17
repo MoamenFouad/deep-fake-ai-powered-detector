@@ -62,10 +62,13 @@ class _FeatureStub:
     engine = "stub"
     names = ["a", "b"]
 
+    def __init__(self, p: float = 0.8):
+        self.p = p
+
     def score(self, crops, explain=True, media="image"):
         feats = np.zeros(DIM)
         feats[0] = 1.0
-        return [FaceScore(0.9, {"a": 0.9, "b": 0.8}, None, feats) for _ in crops]
+        return [FaceScore(self.p, {"a": 0.9, "b": 0.8}, None, feats) for _ in crops]
 
     def calibrate_video(self, p):
         return p
@@ -104,8 +107,17 @@ def test_unfamiliar_face_is_inconclusive(index_path, tmp_path, threshold, unfami
     face = result.faces[0]
     assert face.unfamiliar is unfamiliar
     if unfamiliar:
-        # The stub scores 0.9 (fake), but an unfamiliar face must not get a confident verdict.
+        # The stub scores 0.8 (fake), but an unfamiliar face must not get a confident verdict.
         assert result.verdict == "uncertain" and face.verdict == "uncertain"
         assert result.confidence == 0.0 and "unfamiliar" in result.notes
     else:
         assert result.verdict == "fake" and "unfamiliar" not in result.notes
+
+
+def test_unfamiliar_face_keeps_a_very_confident_fake_call(index_path, tmp_path):
+    _, vectors = index_path
+    path = tmp_path / "guard.npz"
+    _write_index(path, vectors, 0.999)
+    analyzer = Analyzer(settings, OneFaceDetector(), _FeatureStub(0.97), SimilarIndex(path))
+    result = analyzer.analyze_image(_png(), "x.png")
+    assert result.faces[0].unfamiliar and result.verdict == "fake" and "unfamiliar" not in result.notes

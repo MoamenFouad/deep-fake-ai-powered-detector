@@ -139,6 +139,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 0 40px; }
 
 /* right card */
 .report { padding: 30px 32px; overflow-y: auto; display: flex; flex-direction: column; }
+.report > *, .result > * { flex-shrink: 0; }
 .intro { display: flex; flex-direction: column; gap: 22px; }
 .intro h1 { font-size: clamp(40px, 4.2vw, 60px); line-height: 1.02; letter-spacing: -.035em; font-weight: 750; }
 .lede { font-size: 17.5px; color: var(--ink-2); max-width: 46ch; }
@@ -218,6 +219,9 @@ main { max-width: 1480px; margin: 0 auto; padding: 0 40px; }
 .cases i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .cases span { color: var(--ink-2); }
 .cases b { margin-left: auto; font-weight: 650; font-variant-numeric: tabular-nums; }
+.prov li { color: var(--ink-2); font-size: 14.5px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.prov li:first-child { border-top: 1px solid var(--line); }
+.sec .note a { color: var(--ink); text-underline-offset: 3px; }
 .notes li { color: var(--ink-2); font-size: 14.5px; padding-left: 16px; position: relative; }
 .notes li + li { margin-top: 6px; }
 .notes li::before { content: ""; position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--unsure); }

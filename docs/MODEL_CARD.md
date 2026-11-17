@@ -1,4 +1,4 @@
-# Model card: DeepShield v2
+# Model card: DeepShield v3
 
 Following the structure of [Mitchell et al., "Model Cards for Model Reporting" (2019)](https://arxiv.org/abs/1810.03993).
 
@@ -10,11 +10,62 @@ Following the structure of [Mitchell et al., "Model Cards for Model Reporting" (
 | Type | Binary classifier on face crops (real vs. manipulated), with a separate head for video frames |
 | Backbone A | [buildborderless/CommunityForensics-DeepfakeDet-ViT](https://huggingface.co/buildborderless/CommunityForensics-DeepfakeDet-ViT), a ViT-Small trained on the Community Forensics dataset ([Park and Owens, CVPR 2025](https://arxiv.org/abs/2411.04125)); 384-d embedding, one sigmoid logit |
 | Backbone B | [prithivMLmods/deepfake-detector-model-v1](https://huggingface.co/prithivMLmods/deepfake-detector-model-v1), a SigLIP image encoder fine-tuned for real vs. fake; 768-d embedding |
-| Photo head | L2-regularised logistic regression (C = 0.0002) on the standardized 1,154-d vector `[emb_A, emb_B, logit_A, logit_B]`, Platt-calibrated |
+| Provenance check | C2PA Content Credentials (via c2pa-python), IPTC digital source type in XMP, AI tool names in EXIF, Stable Diffusion settings in PNG text. An AI label decides the verdict |
+| Photo face head (v3) | L2-regularised logistic regression (C = 0.02) on the standardized 1,154-d vector `[emb_A, emb_B, logit_A, logit_B]` of the face crop, Platt-calibrated |
+| Whole-image head (v3) | Same features computed on the whole picture (longest side 1,024 px), C = 0.02, Platt-calibrated |
+| Stacker (v3) | `logit(p) = 0.455 * logit(p_face) + 0.639 * logit(p_whole) + 0.052`, fitted on held-out training images |
 | Video head | Same features and form (C = 0.1), trained on video frames only, with a frame calibration and a whole-video calibration |
 | Trained parameters | 1,155 per head (the backbones stay frozen) |
 | Explanation | Grad-CAM of the fused score through both backbones |
-| License | MIT for this code and the heads; each backbone keeps its own license on its Hugging Face page |
+| License | MIT for this code. The v3 heads are trained partly on OpenFake (CC BY-NC 4.0), so they are for non-commercial use. Each backbone keeps its own license on its Hugging Face page |
+
+## Version 3: real-world images
+
+Version 2 (below) was trained and tested on research datasets. On images people actually
+share it called 7.9% of real Reddit photos fake and missed about a third of current AI
+images, so version 3 adds newer data and a second view.
+
+**Training data added** (`ml/scripts/collect_wild.py`). Only images whose caption mentions
+a person and in which YuNet finds a face of at least 64 px:
+
+| Source | Images (train + validation) |
+|---|---|
+| [OpenFake](https://huggingface.co/datasets/ComplexDataLab/OpenFake) train split, AI images from about 70 generators (SD 1.5 to SD 3.5, SDXL fine-tunes, FLUX.1, Flux.2, DALL-E 3, GPT-image-1, Imagen 3 and 4, Ideogram 3, Midjourney 6, Seedream 4, HiDream, Qwen-Image, Grok, video-model frames) | 2,629 |
+| OpenFake train split, real LAION and Pexels photos | 2,034 |
+| OpenFake Reddit split, half by file hash (real and AI images posted on Reddit) | 642 |
+| COCO photos of people (shards 3 to 9; version 2 used 0 to 2) | 400 |
+
+20% of these (by hash) are held out to choose C, calibrate and fit the stacker. The face
+head is trained on these faces together with the version 2 training crops.
+
+**Test data** (never used for any choice): the other half of OpenFake's Reddit split (228
+real, 632 AI), OpenFake's test split (34 real, 601 AI from GPT-image-1.5 and 2, Nano Banana
+Pro, Midjourney 7, Flux.2, Seedream 5, Z-Image, Sora 2, Veo 3 and others; 20 of these
+generators never appear in training) and 500 COCO photos from shards 10 to 13.
+
+| 1,995 test images | AUC | Accuracy | Real photos called fake |
+|---|---|---|---|
+| Version 2 photo head | 0.944 | 79.5% | 7.9% (Reddit) |
+| Version 3 face head | 0.973 | 87.0% | |
+| Version 3 whole-image head | 0.979 | 86.6% | |
+| **Version 3 combined** | **0.987** | **89.5%** | **1.3%** (Reddit) |
+
+With the app's inconclusive band (40 to 60%) and the unfamiliar guard, real Reddit photos
+are answered real 90.4%, inconclusive 8.3%, fake 1.3%; AI images on Reddit fake 87.0%,
+inconclusive 6.2%, real 6.8%. Weakest generators: Flux.2 klein (26% caught), Recraft v3
+(45%), GPT-image-2 (64%), Z-Image Turbo (73%). Full numbers: `reports/wild_metrics.json`.
+
+**Cost of the change.** The v3 face head is slightly weaker on the version 2 research
+test sets: all held-out faces AUC 0.965 to 0.959, never-trained sources 0.969 to 0.953.
+HeyGen avatar frames drop from 39% to 14% caught and Celeb-DF frames from 68% to 58%.
+Videos use the separate video head, which did not change.
+
+**Provenance.** Content Credentials are checked before any pixel model. They are reliable
+when present but removed by screenshots, most messaging apps and many social networks,
+so a missing label is reported as "proves nothing". OpenFake stores images without
+metadata, so the numbers above measure the pixel models only.
+
+The sections below describe version 2, which version 3 extends.
 
 ## Intended use
 

@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api")
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 VIDEO_EXT = {".mp4", ".mov", ".avi", ".webm", ".mkv"}
 METRICS_PATH = ROOT_DIR / "reports" / "metrics.json"
+WILD_METRICS_PATH = ROOT_DIR / "reports" / "wild_metrics.json"
 
 
 async def _read_limited(file: UploadFile, limit_mb: float) -> bytes:
@@ -60,7 +61,11 @@ def health() -> HealthResponse:
 def metrics() -> dict:
     if not METRICS_PATH.exists():
         raise HTTPException(404, "No metrics yet. Run ml/scripts/train_fusion.py.")
-    return json.loads(METRICS_PATH.read_text())
+    out = json.loads(METRICS_PATH.read_text())
+    if WILD_METRICS_PATH.exists():
+        # Version 3: the 2025-2026 test images and the current photo head on the version 2 test sets.
+        out["wild"] = json.loads(WILD_METRICS_PATH.read_text())
+    return out
 
 
 @router.post("/analyze", response_model=AnalysisResult, summary="Analyze an image or a video")

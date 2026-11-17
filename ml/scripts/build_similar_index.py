@@ -65,6 +65,8 @@ def main() -> None:
     ap.add_argument("--dims", type=int, default=64)
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--unfamiliar-pct", type=float, default=2.0)
+    ap.add_argument("--wild-feats", default="", help="Also index faces from train_wild.py's training images")
+    ap.add_argument("--wild-meta", default="")
     args = ap.parse_args()
 
     head = FusionHead(ROOT / args.head)
@@ -75,6 +77,19 @@ def main() -> None:
 
     if "aug" not in df:
         df["aug"] = 0
+    if args.wild_feats:
+        from ml.scripts.train_wild import load_wild
+
+        wild, face, _, _ = load_wild(args.wild_feats, args.wild_meta)
+        keep = wild.split.isin(["train", "val"]).to_numpy() & wild.has_face.to_numpy()
+        w = wild[keep].reset_index(drop=True)
+        kind = np.where(w.label == 1, w.generator, w.source.replace({"coco_wild": "coco", "reddit": "reddit_real"}))
+        kind = np.where((w.source == "reddit") & (w.label == 1), "reddit_ai", kind)
+        extra = pd.DataFrame({"path": w.path, "source": "wild_" + w.source, "split": "train", "label": w.label,
+                              "group": w.path, "aug": 0, "kind": kind})
+        df = pd.concat([df, extra], ignore_index=True)
+        feats = np.vstack([feats, face[keep]])
+        print(f"Added {keep.sum()} faces from the new training images")
     # The index holds the original training faces only; augmented copies would be near-duplicates.
     train = ((df.split == "train") & (df.aug == 0)).to_numpy()
     held = (df.split != "train").to_numpy()

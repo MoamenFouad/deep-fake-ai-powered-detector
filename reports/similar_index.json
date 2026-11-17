@@ -1,39 +1,39 @@
 {
   "k": 5,
   "dims": 64,
-  "train_size": 8075,
+  "train_size": 13751,
   "test": {
     "n": 2385,
-    "accuracy": 0.86,
-    "auc": 0.9016,
-    "precision": 0.8829,
-    "recall": 0.8088,
-    "f1": 0.8442,
-    "eer": 0.1382
+    "accuracy": 0.8457,
+    "auc": 0.8898,
+    "precision": 0.8766,
+    "recall": 0.7811,
+    "f1": 0.8261,
+    "eer": 0.1572
   },
   "unseen": {
     "n": 2403,
-    "accuracy": 0.9218,
-    "auc": 0.9681,
-    "precision": 0.9335,
-    "recall": 0.9374,
-    "f1": 0.9354,
-    "eer": 0.0463
+    "accuracy": 0.9247,
+    "auc": 0.9696,
+    "precision": 0.9466,
+    "recall": 0.9277,
+    "f1": 0.9371,
+    "eer": 0.08
   },
   "unfamiliar": {
-    "threshold": 0.6215,
+    "threshold": 0.6177,
     "train_percentile": 2.0,
     "test": {
-      "flagged": 50,
-      "flagged_share": 0.021,
-      "accuracy_flagged": 0.74,
-      "accuracy_rest": 0.8938
+      "flagged": 27,
+      "flagged_share": 0.0113,
+      "accuracy_flagged": 0.7407,
+      "accuracy_rest": 0.883
     },
     "unseen": {
-      "flagged": 127,
-      "flagged_share": 0.0529,
-      "accuracy_flagged": 0.4724,
-      "accuracy_rest": 0.9354
+      "flagged": 36,
+      "flagged_share": 0.015,
+      "accuracy_flagged": 0.3333,
+      "accuracy_rest": 0.9024
     }
   }
 }
