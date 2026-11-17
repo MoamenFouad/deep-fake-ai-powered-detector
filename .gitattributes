@@ -9,3 +9,5 @@
 *.onnx filter=lfs diff=lfs merge=lfs -text
 *.pptx filter=lfs diff=lfs merge=lfs -text
 *.gif filter=lfs diff=lfs merge=lfs -text
+# Small test fixtures stay plain Git objects so CI can read them without LFS.
+tests/fixtures/** !filter !diff !merge binary
