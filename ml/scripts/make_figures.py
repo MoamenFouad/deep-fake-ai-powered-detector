@@ -9,6 +9,7 @@ reports/robustness.json. Writes:
   roc.png                 ROC curves on the test and unseen splits
   confusion_matrix.png    verdict counts on the test split
   robustness.png          AUC after each kind of degradation
+  real_world.png          version 2 vs version 3 on held-out real-world images
 """
 
 from __future__ import annotations
@@ -199,6 +200,40 @@ def robustness() -> None:
     _save(fig, "robustness.png")
 
 
+def real_world() -> None:
+    """Version 2 vs version 3 on the 1,995 held-out real-world images (reports/wild_metrics.json)."""
+    path = REPORTS / "wild_metrics.json"
+    if not path.exists():
+        return
+    w = json.loads(path.read_text())
+    app = w["app_outcome_with_inconclusive_band"]
+    v2, v3 = app["v2_without_guard"], app["v3_app"]
+    rows = [
+        ("Real Reddit photos\ncalled fake (lower is better)", v2["reddit_real"]["fake"], v3["reddit_real"]["fake"]),
+        ("Real Reddit photos\ncalled real", v2["reddit_real"]["real"], v3["reddit_real"]["real"]),
+        ("AI images on Reddit\ncaught", v2["reddit_fake"]["fake"], v3["reddit_fake"]["fake"]),
+        ("Newest generators\ncaught", v2["openfake_test_fake"]["fake"], v3["openfake_test_fake"]["fake"]),
+        ("Everyday photos\ncalled real", v2["coco_wild_real"]["real"], v3["coco_wild_real"]["real"]),
+    ]
+    y = np.arange(len(rows))[::-1]
+    h = 0.38
+    fig, ax = plt.subplots(figsize=(9.5, 4.6))
+    ax.barh(y - h / 2, [r[1] for r in rows], height=h, color=GREY, label="Version 2")
+    ax.barh(y + h / 2, [r[2] for r in rows], height=h, color=INK, label="Version 3")
+    for yi, (_, a, b) in zip(y, rows):
+        ax.text(b + 0.012, yi + h / 2, f"{b:.1%}", va="center", fontsize=9.5, color=TEXT, fontweight="bold")
+        ax.text(a + 0.012, yi - h / 2, f"{a:.1%}", va="center", fontsize=9, color=TEXT_2)
+    ax.set_yticks(y, [r[0] for r in rows])
+    ax.set_xlim(0, 1.12)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0], ["0%", "25%", "50%", "75%", "100%"])
+    ax.grid(axis="y", visible=False)
+    n = w["wild_test"]["v3_combined"]["overall"]["n"]
+    ax.set_title(f"What the app answers on {n:,} held-out real-world images")
+    ax.set_xlabel("The rest of each group is answered \"inconclusive\".")
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.06), ncols=2, fontsize=10, handlelength=1.2)
+    _save(fig, "real_world.png")
+
+
 def main() -> None:
     metrics = json.loads((REPORTS / "metrics.json").read_text())
     preds = np.load(REPORTS / "test_predictions.npz", allow_pickle=True)
@@ -207,6 +242,7 @@ def main() -> None:
     roc(metrics, preds)
     confusion(preds)
     robustness()
+    real_world()
     print("Figures written to", REPORTS)
 
 

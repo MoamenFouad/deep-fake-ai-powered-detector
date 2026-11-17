@@ -105,6 +105,8 @@ Reddit split), OpenFake's test images from the newest generators, and everyday C
 | Everyday photos called real | 98.6% | **98.8%** |
 | AUC, all 1,995 images | 0.944 | **0.987** |
 
+<p align="center"><img src="reports/real_world.png" width="760" alt="What the app answers on 1,995 held-out real-world images, version 2 against version 3"></p>
+
 | Generator (OpenFake test) | Version 2 | Version 3 |
 |---|---|---|
 | GPT-image-2 | 36% | **64%** |
